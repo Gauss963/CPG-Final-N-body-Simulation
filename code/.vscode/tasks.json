@@ -1,0 +1,42 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Fortran",
+            "type": "shell",
+            "command": "gfortran",
+            "args": [
+                "-o",
+                "Simulation_FF",
+                "Simulation.f90"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
+
+// {
+//     "version": "2.0.0",
+//     "tasks": [
+//         {
+//             "label": "Build C++",
+//             "type": "shell",
+//             "command": "clang++",
+//             "args": [
+//                 "-std=c++11",
+//                 "-o",
+//                 "Simulation_cc",
+//                 "Simulation.cc"
+//             ],
+//             "group": {
+//                 "kind": "build",
+//                 "isDefault": true
+//             },
+//             "problemMatcher": []
+//         }
+//     ]
+// }
