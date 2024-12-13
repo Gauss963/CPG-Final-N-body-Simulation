@@ -1,4 +1,4 @@
-program nbody_sim
+program Simulation
     implicit none
     integer, parameter :: dp = selected_real_kind(15, 307)
     integer :: exp_val, num_particles, steps, i, j, step
@@ -10,6 +10,9 @@ program nbody_sim
     integer :: unit_particle_data, unit_energy_data
     character(len=100) :: pc_filename, eg_filename
 
+    integer :: seed_size
+    integer, allocatable :: seed(:)
+
     call read_config("config.ini", exp_val, L, dt, T, G)
     num_particles = 2**exp_val
     steps = int(T/dt)
@@ -17,7 +20,12 @@ program nbody_sim
     allocate(mass(num_particles), radius(num_particles), pos(3,num_particles), vel(3,num_particles), acc(3,num_particles))
     allocate(total_kinetic_energy(steps), total_potential_energy(steps), total_angular_momentum(steps))
 
-    call random_seed()
+    call random_seed(size=seed_size)
+    allocate(seed(seed_size))
+    seed = 42
+    call random_seed(put=seed)
+
+    ! call random_seed()
     call init_particles(num_particles, L, mass, radius, pos, vel)
 
     ! write(pc_filename,'("../data/FF_particle_data_N_",I0,".bin")') num_particles
@@ -155,6 +163,8 @@ contains
         real(dp), intent(out) :: pos(3,N), vel(3,N)
         integer :: i
         real(dp) :: r1
+
+        r1 = 42.0
 
         do i = 1, N
             call random_number(r1); mass(i) = 1.0_dp + r1*(2.0_dp-1.0_dp)
@@ -312,4 +322,4 @@ contains
         L_mag = sqrt(Lx*Lx + Ly*Ly + Lz*Lz)
     end function compute_angular_momentum
 
-end program nbody_sim
+end program Simulation

@@ -1,7 +1,5 @@
 import configparser
-
 import matplotlib.pyplot as plt
-
 import numpy as np
 
 def plot_from_simulator():
