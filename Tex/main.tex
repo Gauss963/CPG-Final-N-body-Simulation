@@ -67,14 +67,14 @@ The $N$-body problem, which seeks to determine the motions of $N$ distinct masse
 
 Despite its importance, the $N$-body problem poses significant computational and numerical challenges. The complexity of direct pairwise force evaluations scales as $O(N^2)$, becoming prohibitively expensive for large $N$. Additionally, the need to maintain physical fidelity—such as conserving energy and angular momentum—demands careful selection of numerical integration methods and collision-handling procedures.
 
-This article focuses on a computational approach that harnesses both the classical laws governing gravitational interaction and modern approximation techniques to accelerate computations. We implement and test a Barnes–Hut algorithm to reduce computational complexity to approximately $O(N \log N)$, and we monitor key invariants such as total energy and angular momentum to assess the quality of the simulation. Furthermore, we explore performance improvements and discuss approaches to scaling these methods to larger systems.
+This article focuses on a computational approach that harnesses both the classical laws governing gravitational interaction and modern approximation techniques to accelerate computations. I implement and test a Barnes–Hut algorithm to reduce computational complexity to approximately $O(N \log N)$, and I monitor key invariants such as total energy and angular momentum to assess the quality of the simulation. Furthermore, I explore performance improvements and discuss approaches to scaling these methods to larger systems.
 
-In the following sections, we detail the theoretical foundations and algorithms employed (Section~\ref{sec:algorithm}), describe the simulation setup (Section~\ref{sec:Simulation-Setup}), present the results, and evaluate the performance and fidelity of my approach.
+In the following sections, I detail the theoretical foundations and algorithms employed (Section~\ref{sec:algorithm}), describe the simulation setup (Section~\ref{sec:Simulation-Setup}), present the results, and evaluate the performance and fidelity of my approach.
 
 
 \section{Algorithm}\label{sec:algorithm}
 
-In order to model the gravitational interactions among $N$ bodies, we start from fundamental physical laws and incorporate efficient computational techniques. This section first reviews Newton’s Law of Gravitation, the force model at the core of my simulation, and then introduces the Barnes–Hut algorithm, which significantly reduces the computational burden for large $N$.
+In order to model the gravitational interactions among $N$ bodies, I start from fundamental physical laws and incorporate efficient computational techniques. This section first reviews Newton’s Law of Gravitation, the force model at the core of my simulation, and then introduces the Barnes–Hut algorithm, which significantly reduces the computational burden for large $N$.
 
 \subsection{Newton’s Law of Gravitation}
 
@@ -219,7 +219,7 @@ Conservation of total energy, $E_{\text{total}} = E_{\text{kinetic}} + E_{\text{
 
 Figures~\ref{TE32}--\ref{TE256} compares total kinetic, potential, and total energy for $N = 32, 64, 128,$ and $256$. For the smaller systems ($N = 32$ and $N = 64$), the total energy remains relatively stable over time, with only modest fluctuations that do not significantly diverge from the initial values. This indicates that, for these system sizes, our chosen timestep and integration schemes effectively preserve total energy on the timescales examined.
 
-As we increase $N$ to $128$, we begin to see more pronounced variability in total energy, though the system still appears to retain rough energy balance. The fluctuations can be attributed to the increasing complexity of gravitational interactions and more frequent close encounters. Nevertheless, the energy still does not exhibit a catastrophic drift away from its initial level.
+As I increase $N$ to $128$, there begin to be more pronounced variability in total energy, though the system still appears to retain rough energy balance. The fluctuations can be attributed to the increasing complexity of gravitational interactions and more frequent close encounters. Nevertheless, the energy still does not exhibit a catastrophic drift away from its initial level.
 
 At $N = 256$, however, energy conservation begins to break down more noticeably. Over time, the total energy curve drifts significantly, indicating that the numerical errors and collision-related adjustments accumulate faster than they can be mitigated. This behavior points toward the need for more robust integration methods, smaller timesteps, or improved collision handling as $N$ grows large. The rapidly evolving and increasingly crowded environment of a high-$N$ system challenges the stability of the current approach, causing greater deviations from exact energy conservation.
 
@@ -256,7 +256,7 @@ The observed energy drift at higher $N$ highlights the need for more sophisticat
 
 Beyond integration methods, data structures like the Barnes–Hut tree, which have already proven effective in reducing computational complexity, can be further optimized. More accurate cell-opening criteria or hybrid approaches that combine direct summation for near-neighbors with Barnes–Hut approximations for distant particles might yield improved stability.
 
-Finally, considering that this study utilized relatively small particle numbers compared to state-of-the-art astrophysical simulations, these findings underscore the importance of careful algorithmic choices as we approach massively parallel, million- or billion-particle simulations. The lessons learned here—balancing accuracy, efficiency, and stability—are directly relevant to advancing the field of computational astrophysics, where precise $N$-body solvers underpin our understanding of gravitational clustering, galaxy formation, and large-scale cosmological structures.
+Finally, considering that this study utilized relatively small particle numbers compared to state-of-the-art astrophysical simulations, these findings underscore the importance of careful algorithmic choices as I approach massively parallel, million- or billion-particle simulations. The lessons learned here—balancing accuracy, efficiency, and stability—are directly relevant to advancing the field of computational astrophysics, where precise $N$-body solvers underpin our understanding of gravitational clustering, galaxy formation, and large-scale cosmological structures.
 
 \subsection*{Future Directions}
 
@@ -269,7 +269,7 @@ Moving forward, several improvements are possible:
     \item \textbf{Scaling Tests:} Testing larger $N$ systems, perhaps combined with GPU acceleration or parallel computing strategies, would provide valuable insight into how well these solutions scale and where bottlenecks occur.
 \end{itemize}
 
-In conclusion, while our simulations demonstrate stable angular momentum conservation and reliable energy behavior for smaller $N$, the results at higher $N$ emphasize the need for more advanced numerical techniques. By refining our integration schemes, timestepping strategies, and collision handling, we can push toward more accurate, stable, and scalable $N$-body simulations, ultimately gaining a deeper understanding of gravitational interactions in complex astrophysical environments.
+In conclusion, while our simulations demonstrate stable angular momentum conservation and reliable energy behavior for smaller $N$, the results at higher $N$ emphasize the need for more advanced numerical techniques. By refining our integration schemes, timestepping strategies, and collision handling, I can push toward more accurate, stable, and scalable $N$-body simulations, ultimately gaining a deeper understanding of gravitational interactions in complex astrophysical environments.
 
 
 
@@ -285,7 +285,7 @@ In conclusion, while our simulations demonstrate stable angular momentum conserv
 \section*{Acknowledgments}
 This is a final report for a course on the Computer Programming on Geosciences, written by a senior student from the Department of Physics at National Taiwan University. Please note that I have tried my best to eliminate typos and errors. So if there are any, they are unintentional, and I ask for your understanding and forgiveness.
 \section*{Author Declarations}
-\subsection*{Conflict Of Interest}
+\subsection*{Conflict of Interest}
 The authors have no conflicts to disclose.
 \newpage
 \nocite{*}
