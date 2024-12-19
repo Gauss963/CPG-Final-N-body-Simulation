@@ -64,14 +64,14 @@ G = 1.0
 
 | Week | Date   | Task                                                 |
 | ---- | ------ | ---------------------------------------------------- |
-| 8    | 10/21  | Choose a topic before 10/28                          |
 | 9    | 10/28  | Gathering papers on `N-body Simulation`              |
 | 10   | 11/4   | Start initial coding, construct necessary functions. |
 | 11   | 11/11  | Get ready to run the simulation                      |
 | 12   | 11/18  | Run the simulation                                   |
 | 13   | 11/25  | Run the simulation                                   |
-| 14   | 12/2   | Finish plotting and statistics                       |
-| 15   | 12/9   | Flash talk recording                                 |
+| 14   | 12/02  | Run the simulation                                   |
+| 15   | 12/09  | Finish plotting and statistics                       |
+| 16   | 12/16  | Flash all works                                      |
 
 ## User Guide
 
