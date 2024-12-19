@@ -1,277 +1,235 @@
-\documentclass[10pt, xcolor = svgnames]{beamer} %Beamer
-\usepackage{palatino} %font type
-\usefonttheme{metropolis} %Type of slides
-\usefonttheme[onlymath]{serif} %font type Mathematical expressions
-\usetheme[progressbar = frametitle,titleformat frame=smallcaps,numbering=counter]{metropolis} %This adds a bar at the beginning of each section.
-\useoutertheme[subsection=false]{miniframes} %Circles in the top of each frame, showing the slide of each section you are at
-
-\usepackage{appendixnumberbeamer} %enumerate each slide without counting the appendix
-\setbeamercolor{progress bar}{fg=Maroon!70!Coral} %These are the colours of the progress bar. Notice that the names used are the svgnames
-\setbeamercolor{title separator}{fg=DarkSalmon} %This is the line colour in the title slide
-\setbeamercolor{structure}{fg=black} %Colour of the text of structure, numbers, items, blah. Not the big text.
-\setbeamercolor{normal text}{fg=black!87} %Colour of normal text
-\setbeamercolor{alerted text}{fg=DarkRed!60!Gainsboro} %Color of the alert box
-\setbeamercolor{example text}{fg=Maroon!70!Coral} %Colour of the Example block text
-
-
-\setbeamercolor{palette primary}{bg=NavyBlue!50!DarkOliveGreen, fg=white} %These are the colours of the background. Being this the main combination and so one. 
-\setbeamercolor{palette secondary}{bg=NavyBlue!50!DarkOliveGreen, fg=white}
-\setbeamercolor{palette tertiary}{bg=NavyBlue!40!Black, fg= white}
-\setbeamercolor{section in toc}{fg=NavyBlue!40!Black} %Color of the text in the table of contents (toc)
-
-%These next packages are the useful for Physics in general, you can add the extras here. 
-\usepackage{amsmath, amssymb}
-\usepackage{slashed}
-\usepackage{cite}
-\usepackage{relsize}
-\usepackage{caption}
-\usepackage{subcaption}
-\usepackage{multicol}
-\usepackage{booktabs}
-\usepackage[scale=2]{ccicons}
-\usepackage{pgfplots}
-\usepgfplotslibrary{dateplot}
+\documentclass[a4paper, 12pt, oneside, onecolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
 \usepackage{geometry}
-\usepackage{xspace}
-\usepackage[useregional]{datetime2}
-\newcommand{\themename}{\textbf{\textsc{bluetemp}\xspace}}%metropolis}}\xspace}
-\newcommand{\cald}{{\rm d}}
-
-\newcommand{\TEX}[0]{~\includegraphics[height = 9.5pt]{./logos/TeX.pdf}}
-\newcommand{\LATEX}[0]{~\includegraphics[height = 9.5pt]{./logos/LATeX.pdf}}
-\newcommand{\FORTRAN}[0]{~\includegraphics[height = 9.5pt]{./logos/Fortran.pdf}}
-\newcommand{\PYTHON}[0]{~\includegraphics[height = 9.5pt]{./logos/Python.pdf}}
-\newcommand{\MMA}[0]{~\includegraphics[height = 9.5pt]{./logos/Mathematica.pdf}}
-\newcommand{\CERN}[0]{~\includegraphics[height = 9.5pt]{./logos/CERN_ROOT.pdf}}
-\newcommand{\GPT}[0]{~\includegraphics[height = 9.5pt]{./logos/GPT.pdf}}
-\newcommand{\ALL}[0]{\FORTRAN\PYTHON\MMA}
-\newcommand\blfootnote[1]{
-  \begingroup
-  \renewcommand\thefootnote{}\footnote{#1}
-  \addtocounter{footnote}{-1}
-  \endgroup
-}
-
-
-
-\usepackage{listings}
-\usepackage{color}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{systeme}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{gensymb}
+\usepackage{indentfirst}
 \usepackage{bigints}
-
-\definecolor{dkgreen}{rgb}{0,0.6,0}
-\definecolor{gray}{rgb}{0.5,0.5,0.5}
-\definecolor{mauve}{rgb}{0.58,0,0.82}
-
-\lstset{frame=tb,
-  language=FORTRAN,
-  aboveskip=3mm,
-  belowskip=3mm,
-  showstringspaces=false,
-  columns=flexible,
-  basicstyle={\small\ttfamily},
-  numbers=none,
-  numberstyle=\tiny\color{gray},
-  keywordstyle=\color{blue},
-  commentstyle=\color{dkgreen},
-  stringstyle=\color{mauve},
-  breaklines=true,
-  breakatwhitespace=true,
-  tabsize=4
+\usepackage{esint}
+\usepackage{harpoon}
+\usepackage{relsize}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{bm}
+\usepackage{multicol}
+\usepackage[useregional]{datetime2}
+\usepackage[colorlinks = true, linkcolor = blue, hypertexnames = true]{hyperref}
+\hypersetup{
+    colorlinks=true,
+    allcolors=blue	
 }
+\usepackage[super, square]{natbib}
+\usepackage{lipsum}
+
+\usepackage{epstopdf}
+\usepackage{subfig}
+\usepackage[subfigure]{tocloft}
 
 
+\newcommand{\cald}{{\rm d}}
+\renewcommand\thesection{\Roman{section}}
+\renewcommand{\thesubsection}{\thesection.\Roman{subsection}}
+\renewcommand{\thesubsubsection}{\thesubsection.\Roman{subsubsection}}
 
+\geometry{a4paper, scale = 0.85}
+\linespread{1.5}
 
+\setlength{\parindent}{2em}
 
-
-\title{Computer Programming \\ on Geosciences}
-%\author[Name]{Gauss \textsc{Chang}\inst{$\dagger$}, others\inst{$\ddagger$} and supervisor's name\inst{$\ast$}} %With inst, you can change the institution they belong
-\author[Name]{Gauss \textsc{Chang}\inst{$\dagger$}} %With inst, you can change the institution they belong
-\subtitle{Numerical Integration Methods}
-
-
-\institute[uni] % (optional)
-{
-	\inst{\dagger}
-	Department of Physics \\
-	\textsc{National Taiwan University}
-%	\and
-%	\inst{\ddagger}
-%	Department of Something \\
-%	\textsc{others' Institute}
-%	\and
-%	\inst{\ast}
-%	Department of Something \\
-%	\textsc{Supervisor's Institute}
-}
-
-
-% \date{\today} %Here you can change the date
-\date{\DTMdate{2024-09-18}} %Here you can change the date
-
-\titlegraphic{\vspace{0.0cm}\hfill\includegraphics[width = 0.25\textwidth]{./logos/NTU.pdf}}
 
 \begin{document}
-{
-\setbeamercolor{background canvas}{bg=NavyBlue!50!DarkOliveGreen, fg=white}
-\setbeamercolor{normal text}{fg=white}
+\title{Mapping the Dance of the Stars:\\Unveiling the Dynamics of N-Body Simulations}
+\author{Gauss T. Chang
+\thanks{Department of Physics, National Taiwan University, Taipei, Taiwan 
+\texttt{b09501028@ntu.edu.tw}}}
+
+
+\date{\DTMdate{2024-12-17}}
 \maketitle
-}%This is the colour of the first slide. bg= background and fg=foreground
+\begin{abstract}
+	The N-body problem lies at the heart of understanding complex gravitational interactions, from planetary systems to galactic dynamics. This article explores the computational approach to solving the N-body problem, leveraging the power of Fortran for efficient simulation. I analyze the evolution of the system's energy and angular momentum to ensure conservation laws are upheld, a crucial benchmark for the accuracy of numerical methods. Additionally, statistical analyses provide insights into the emergent behaviors and stability of the system, further illustrating the robustness of the simulation.
 
-\metroset{titleformat frame=smallcaps} %This changes the titles for small caps
-
-
-
-
-\begin{frame}{Outline}
-  \setbeamertemplate{section in toc}[sections numbered] %This is numbering the sections
-  \tableofcontents[hideallsubsections] %You can comment this line if you want to show the subsections in the table of contents
-\end{frame}
+	This work sheds light on how N-body simulations continue to transform our understanding of the cosmos, offering a gateway to unraveling the mysteries of celestial mechanics.
+\end{abstract}
+\begin{multicols}{2}
 
 
+\section{Introduction}
+
+The $N$-body problem, which seeks to determine the motions of $N$ distinct masses under mutual gravitational influence, has long been central to our understanding of celestial mechanics and astrophysical systems. While closed-form solutions are limited to special cases, computational simulations now serve as essential tools for studying the evolution of complex systems such as star clusters, planetary systems, and galaxies.
+
+Despite its importance, the $N$-body problem poses significant computational and numerical challenges. The complexity of direct pairwise force evaluations scales as $O(N^2)$, becoming prohibitively expensive for large $N$. Additionally, the need to maintain physical fidelity—such as conserving energy and angular momentum—demands careful selection of numerical integration methods and collision-handling procedures.
+
+This article focuses on a computational approach that harnesses both the classical laws governing gravitational interaction and modern approximation techniques to accelerate computations. We implement and test a Barnes–Hut algorithm to reduce computational complexity to approximately $O(N \log N)$, and we monitor key invariants such as total energy and angular momentum to assess the quality of the simulation. Furthermore, we explore performance improvements and discuss approaches to scaling these methods to larger systems.
+
+In the following sections, we detail the theoretical foundations and algorithms employed (Section~\ref{sec:algorithm}), describe the simulation setup (Section~\ref{sec:Simulation-Setup}), present the results, and evaluate the performance and fidelity of my approach.
 
 
-%\begin{frame}{Objectives}
-%\underline{\textsc{Some text:}}
-%\begin{small}
-%This is some small Text. 
-%\end{small}
-%
-%\metroset{block=fill}
-%\begin{exampleblock}{\textsc{Example block}}
-%\begin{itemize}
-%    \item You know how to do itemize
-%    \item Also here
-%\end{itemize}
-%\end{exampleblock}
-%\end{frame}
+\section{Algorithm}\label{sec:algorithm}
+
+In order to model the gravitational interactions among $N$ bodies, we start from fundamental physical laws and incorporate efficient computational techniques. This section first reviews Newton’s Law of Gravitation, the force model at the core of my simulation, and then introduces the Barnes–Hut algorithm, which significantly reduces the computational burden for large $N$.
+
+\subsection{Newton’s Law of Gravitation}
+
+The gravitational force between two point masses $m_1$ and $m_2$ separated by a distance vector $\mathbf{r} = \mathbf{r}_1 - \mathbf{r}_2$ is given by
+\begin{equation}
+\mathbf{F} = -G \frac{m_1 m_2}{|\mathbf{r}|^3} \mathbf{r},
+\end{equation}
+where $G$ is the gravitational constant. This force is attractive and acts along the line connecting the two masses. In an $N$-body system, each particle experiences forces from every other particle, leading to a set of coupled, nonlinear ordinary differential equations. For large $N$, evaluating each pairwise force directly leads to an $O(N^2)$ complexity, a severe limitation for computational studies of large-scale structures.
+
+To handle dynamical evolution, we employ numerical integration methods. In this study, we utilize time-stepping integrators that update particle velocities and positions incrementally. Ensuring that these integrators preserve essential physical invariants, such as total energy and angular momentum, is key to obtaining meaningful and stable long-term results.
+
+\subsection{Barnes–Hut Algorithm\cite{barnes_hierarchical_1986}}
+
+The Barnes–Hut algorithm addresses the scaling issue inherent in direct $N$-body simulations. Rather than evaluating every particle-particle interaction, the algorithm builds a hierarchical tree structure to group particles that are sufficiently distant into a single effective mass at their combined center of mass. By treating distant clusters of particles as single entities, the force calculation for a given particle becomes more efficient, reducing the typical complexity to $O(N \log N)$.
+
+The core idea is to recursively subdivide the computational domain into cells (quadrants in 2D or octants in 3D), constructing a tree that represents the spatial distribution of particles. Each internal node of the tree corresponds to a cell containing a group of particles, characterized by their total mass and center of mass. During the force calculation phase, if a node is sufficiently far away relative to its size, it can be used as a single approximation source. Otherwise, the tree is traversed further down to obtain finer-grained information.
+
+By carefully tuning parameters such as the opening angle $\theta$, one can achieve a balance between accuracy and performance. A smaller $\theta$ yields more accurate results at the cost of additional computations, whereas a larger $\theta$ trades off accuracy for speed.
 
 
 
-\section{Inspiration}
 
-\begin{frame}[fragile]{Inspiration: An Interesting Question}
-I saw this interesting question a few month ago:
 
-\metroset{block=fill}
-\begin{exampleblock}{\textsc{Question}}
-How do you prove that
+\subsection{Time Integration}
+
+In this work, we start with a simple Euler method for time integration. For each particle, given a timestep $\Delta t$:
+
 \begin{align}
-	\pi^3
-	&> 31
-\end{align}
-\end{exampleblock}
-\blfootnote{\ALL}
-\end{frame}
-
-\begin{frame}[fragile]{Inspiration: An Interesting Question}
-And there was a brilliant answer:
-
-\metroset{block=fill}
-\begin{exampleblock}{\textsc{Proof}}
-Notice that
-\begin{align}
-	\bigints_0^1 \left[ \frac{8 x^5 \left( 1 - x \right)^2 \left( 324889 - 120736 x^2 \right) }{445625 \left( 1 + x^2 \right) } \cdot \left( \ln^2 x \right) \right] \,\cald x
-	% \int_0^1 \frac{8 x^5 \left( 1 - x \right)^2 \left( 324889 - 120736 x^2 \right) }{445625 \left( 1 + x^2 \right) } \cdot \left( \ln^2 x \right) dx
-	&= \pi^3 - 31
+	\mathbf{x}(t + \Delta t)
+	&= \mathbf{x}(t) + \mathbf{\dot{x}}(t) \cdot \Delta t \\
+	\mathbf{\dot{x}}(t + \Delta t)
+	&= \mathbf{\dot{x}}(t) + \mathbf{\ddot{x}}(t) \cdot \Delta t
 \end{align}
 
-since the integrand is positive over the region, the integral is also positive.
+However, the Euler method, while straightforward, is only first-order accurate in $\Delta t$ and can lead to significant energy drift over long timescales. To improve accuracy and better conserve physical invariants such as total energy and angular momentum, we incorporate higher-order integration schemes derived from the Taylor expansion of position and velocity at $t + \Delta t$:
 
-Trivially, $\pi^3 > 31$ is proven.
-\end{exampleblock}
-\end{frame}
+\begin{align}
+	\mathbf{x_1} \nonumber
+	&= \mathbf{x_0} + \frac{1}{2}\left(\mathbf{\dot{x}_0} + \mathbf{\dot{x}_1}\right)\Delta t \\
+	&+ \frac{1}{12}\left(\mathbf{a_0} - \mathbf{a_1}\right)\Delta t^2+ O\left(\Delta t^5\right) \\
+	\mathbf{\dot{x}_1} \nonumber
+	&= \mathbf{\dot{x}_0} + \frac{1}{2}\left(\mathbf{a_0} + \mathbf{a_1}\right)\Delta t \\
+	&+ \frac{1}{12}\left(\mathbf{\dot{a}_0} - \mathbf{\dot{a}_1}\right)\Delta t^2 + O\left(\Delta t^5\right)
+\end{align}
+
+Such higher-order and symplectic integrators (e.g., velocity Verlet) provide better long-term stability and minimize numerical artifacts that arise from approximation errors. In future enhancements, we may employ adaptive timestepping or even more sophisticated integrators to robustly handle close encounters, large $N$ systems, and complex dynamical scenarios.
 
 
 
-\section{Addressing The Problem}
 
-\begin{frame}[fragile]{Addressing The Problem: Construct Function}
+\subsection{Elastic Collision}
+
+In my simulation, particles are modeled as spherical masses that can collide elastically. A collision occurs when the distance between two particles $a$ and $b$ is less than or equal to the sum of their radii:
+\begin{align}
+	\left|\mathbf{x}_a - \mathbf{x}_b \right|
+	& \leq \left( r_a + r_b \right)
+\end{align}
+
+Once a collision is detected, we resolve it by treating the encounter as a one-dimensional elastic collision along the line connecting the particle centers. Define the unit normal vector:
+\begin{align}
+	\mathbf{n}
+	&= \frac{\mathbf{x}_a - \mathbf{x}_b}{\left|\mathbf{x}_a - \mathbf{x}_b\right|}
+\end{align}
+
+The relative velocity of the particles along this normal direction is: \begin{equation} v_{\text{rel}, n} = \left(\mathbf{v}_a - \mathbf{v}_b\right) \cdot \mathbf{n}. \end{equation}
+
+If $v_{\text{rel}, n}$ is positive, the particles are already moving apart, and no collision response is needed. Otherwise, we compute an impulse $J$ that, when applied equally and oppositely to the two particles, conserves both momentum and kinetic energy. For masses $m_a$ and $m_b$, the magnitude of the impulse is: \begin{equation} J = \frac{2,v_{\text{rel}, n}}{\frac{1}{m_a} + \frac{1}{m_b}}. \end{equation}
+
+The post-collision velocities are then updated as follows: \begin{align} \mathbf{v}_a' &= \mathbf{v}_a - \frac{J}{m_a}\mathbf{n}, \ \mathbf{v}_b' &= \mathbf{v}_b + \frac{J}{m_b}\mathbf{n}. \end{align}
+
+This formulation ensures that the collision is perfectly elastic. Kinetic energy and linear momentum along the collision line are conserved, and the particles no longer overlap following the collision response. Such a treatment, while idealized, is sufficient for maintaining physically consistent behavior in the simulated system and preventing unrealistic particle interpenetrations.
 
 
-Here is an example code for the integrand.
-\begin{lstlisting}
-function integrand(x) result(res)
-    implicit none
-    real :: x
-    real :: numerator, denominator, res
-    real, parameter :: C1 = 324889.0
-    real, parameter :: C2 = 120736.0
-    real, parameter :: C3 = 445625.0
-    numerator = 8.0 * x**5 * (1.0 - x)**2 * (C1 - C2 * x**2) * (log(x))**2
-    denominator = C3 * (1.0 + x**2)
-    res = numerator / denominator
-end function integrand
-\end{lstlisting}
-\blfootnote{\FORTRAN}
-\end{frame}
+\section{Simulation Setup}\label{sec:Simulation-Setup}
 
-\begin{frame}[fragile]{Addressing The Problem: Plot The Integrand}
+For my simulations, we begin by generating an initial distribution of $N$ particles placed within a cubic volume of side length $L$. Each particle is assigned:
 
-Try to plot the integrand, just make sure it is a ``well-behaved'' function.
+\begin{itemize}
+    \item \textbf{Mass:} Chosen randomly between $1$ and $2$, ensuring a modest mass contrast.
+    \item \textbf{Position:} Initialized from a uniform distribution within the domain $$-\frac{L}{2}  \leq x, y, z \leq \frac{L}{2} $$
+    \item \textbf{Velocity:} Drawn from a small uniform range (e.g., $-1$ to $1$), providing a non-zero initial kinetic state that allows the system to evolve dynamically.
+    \item \textbf{Radius:} Assigned between $0.001$ and $0.05$, enabling detection and handling of elastic collisions when particles come into close proximity.
+\end{itemize}
 
-\begin{figure}
-\centering
-\includegraphics[width=0.5\textwidth]{./plot/Integrand_FORTRAN.pdf}
-\caption{$\frac{8 x^5 \left( 1 - x \right)^2 \left( 324889 - 120736 x^2 \right) }{445625 \left( 1 + x^2 \right) } \cdot \left( \ln^2 x \right)$}
-\label{plot1}
+These initial conditions, as illustrated in the project slides, serve as a simple yet flexible baseline for exploring gravitational dynamics. The time domain is discretized into steps of size $\Delta t$. At each timestep, we:
+
+\begin{enumerate}
+    \item \textbf{Build the Barnes--Hut tree:} Particles are sorted into a hierarchical structure for efficient force approximations.
+    \item \textbf{Compute Forces:} Gravitational forces on each particle are derived using the Barnes--Hut approximation. Close pairs are treated at a finer resolution, while distant groups of particles are represented by their center of mass.
+    \item \textbf{Handle Collisions:} If two particles overlap (based on their radii), we resolve their encounter with an elastic collision model, preserving linear momentum and ensuring a physically plausible outcome.
+    \item \textbf{Update Kinematics:} Particle positions and velocities are integrated forward in time using a chosen time integrator. We record total energy and angular momentum after each update to monitor numerical fidelity.
+\end{enumerate}
+
+By proceeding in this manner, we can visualize the initial random configurations evolving into complex structures, as demonstrated in my slide presentations and supplementary animations. These setups, while simplified, are an effective proving ground for testing algorithmic performance, verifying energy and momentum conservation, and identifying numerical drift in large-$N$ simulations.
+
+
+\end{multicols}
+
+
+\section{Results}
+
+\subsection{Angular Momentum}
+
+\begin{figure}[H]
+	\centering
+	\subfloat[Angular momentum v.s. time, $N = 32$ \label{AM32}]{\includegraphics[width=.45\columnwidth]{../plot/cc_angular_momentum_vs_time_32_points.pdf}} \hspace{5pt}
+	\subfloat[Angular momentum v.s. time, $N = 64$ \label{AM64}]{\includegraphics[width=.45\columnwidth]{../plot/cc_angular_momentum_vs_time_64_points.pdf}} \\
+	\subfloat[Angular momentum v.s. time, $N = 128$ \label{AM128}]{\includegraphics[width=.45\columnwidth]{../plot/cc_angular_momentum_vs_time_128_points.pdf}} \hspace{5pt}
+	\subfloat[Angular momentum v.s. time, $N = 256$ \label{AM256}]{\includegraphics[width=.45\columnwidth]{../plot/cc_angular_momentum_vs_time_256_points.pdf}} \\
+	\caption{Angular momentum v.s. time for different particle number.}
 \end{figure}
-\blfootnote{\FORTRAN}
-\end{frame}
+
+\begin{multicols}{2}
+
+Angular momentum is a critical conserved quantity in gravitational systems, reflecting the rotational invariants of the system’s motion. In principle, a well-posed $N$-body simulation with accurate numerical integration and appropriate timestep selection should preserve total angular momentum over time.
+
+Figures~\ref{AM32}--\ref{AM256} show the evolution of the total angular momentum magnitude as a function of time for simulations with $N = 32, 64, 128,$ and $256$ particles. Overall, the angular momentum remains remarkably stable throughout the simulations. Although minor fluctuations are present, it is important to consider them in the context of the scale of the system’s total angular momentum.
+
+Our simulations maintain a total angular momentum on the order of $10^1$, and the observed fluctuations are on the order of $10^{-9}$ to $10^{-11}$. In other words, the relative change in angular momentum is extremely small, on the order of $10^{-10}$ relative to the magnitude of the total angular momentum. Such tiny deviations are well within acceptable bounds for numerical simulations involving floating-point arithmetic and are likely attributable to truncation errors, round-off errors, and other numerical artifacts inherent in large-scale computations.
+
+Unlike total energy, which can drift more significantly under certain conditions (especially at larger $N$ or after numerous collision events), angular momentum appears robust and shows no trend of systematic loss or gain over time. This stability suggests that our choice of integration scheme, timestep, and collision handling mechanism effectively preserves rotational invariants. Further refinement of the integration methods or employing adaptive time-stepping could reduce these minuscule fluctuations even more, but for the purposes of this study, the current level of angular momentum conservation is fully satisfactory.
+
+In conclusion, the angular momentum results confirm that the numerical approach and algorithms implemented here are both stable and reliable, providing a solid foundation for exploring more complex gravitational systems.
+
+\end{multicols}
+
+
+\subsection{Total Energy}
+
+\begin{figure}[H]
+	\centering
+	\subfloat[Total energy v.s. time, $N = 32$ \label{TE32}]{\includegraphics[width=.45\columnwidth]{../plot/cc_energy_vs_time_32_points.pdf}} \hspace{5pt}
+	\subfloat[Total energy v.s. time, $N = 64$ \label{TE64}]{\includegraphics[width=.45\columnwidth]{../plot/cc_energy_vs_time_64_points.pdf}} \\
+	\subfloat[Total energy v.s. time, $N = 128$ \label{TE128}]{\includegraphics[width=.45\columnwidth]{../plot/cc_energy_vs_time_128_points.pdf}} \hspace{5pt}
+	\subfloat[Total energy v.s. time, $N = 256$ \label{TE256}]{\includegraphics[width=.45\columnwidth]{../plot/cc_energy_vs_time_256_points.pdf}} \\
+	\caption{Total energy v.s. time for different particle number.}
+\end{figure}
+
+\begin{multicols}{2}
+
+Conservation of total energy, $E_{\text{total}} = E_{\text{kinetic}} + E_{\text{potential}}$, is a stringent test of the numerical fidelity of $N$-body simulations. In principle, the gravitational $N$-body system should conserve its total energy if integrated perfectly and if collisions are handled in a physically consistent manner. However, numerical approximations, finite timestep sizes, and the accumulation of round-off and truncation errors can introduce energy drift over the course of the simulation.
+
+Figures~\ref{TE32}--\ref{TE256} compares total kinetic, potential, and total energy for $N = 32, 64, 128,$ and $256$. For the smaller systems ($N = 32$ and $N = 64$), the total energy remains relatively stable over time, with only modest fluctuations that do not significantly diverge from the initial values. This indicates that, for these system sizes, our chosen timestep and integration schemes effectively preserve total energy on the timescales examined.
+
+As we increase $N$ to $128$, we begin to see more pronounced variability in total energy, though the system still appears to retain rough energy balance. The fluctuations can be attributed to the increasing complexity of gravitational interactions and more frequent close encounters. Nevertheless, the energy still does not exhibit a catastrophic drift away from its initial level.
+
+At $N = 256$, however, energy conservation begins to break down more noticeably. Over time, the total energy curve drifts significantly, indicating that the numerical errors and collision-related adjustments accumulate faster than they can be mitigated. This behavior points toward the need for more robust integration methods, smaller timesteps, or improved collision handling as $N$ grows large. The rapidly evolving and increasingly crowded environment of a high-$N$ system challenges the stability of the current approach, causing greater deviations from exact energy conservation.
+
+In summary, while total energy is reasonably well conserved for smaller systems, higher particle numbers lead to more substantial energy drift. Future improvements, such as adaptive timestep selection or higher-order symplectic integrators, may be necessary to maintain better energy conservation in large-scale $N$-body simulations.
 
 
 
 
-\section{Approach One}
 
-
-
-
-
-
-
-
-\begin{frame}[fragile]{Approach One: Monte Carlo Method}
-
-
-Here is an example code for the integrand.
-\lstset{language=Python}
-\begin{lstlisting}
-def integrand(x: float) -> float:
-    C1: Final = 324889
-    C2: Final = 120736
-    C3: Final = 445625
-
-    numerator = 8 * x**5 * (1 - x)**2 * (C1 - C2 * x**2) * (np.log(x))**2
-    denominator = C3 * (1 + x**2)
-
-    return numerator / denominator
-\end{lstlisting}
-\blfootnote{\PYTHON}
-\lstset{language=FORTRAN}
-\end{frame}
-
-
-\begin{frame}[fragile]{Approach One: Monte Carlo Method}
-
-
-Here is another example code for the integrand.
-\lstset{language=C++}
-\begin{lstlisting}
-double integrand(double x) {
-    const double C1 = 324889;
-    const double C2 = 120736;
-    const double C3 = 445625;
-	
-    double numerator = 8 * pow(x, 5) * pow(1 - x, 2) * (C1 - C2 * pow(x, 2)) * pow(log(x), 2);
-    double denominator = C3 * (1 + pow(x, 2));
-    
-    return numerator / denominator;
-}
-\end{lstlisting}
-\blfootnote{\CERN}
-\lstset{language=FORTRAN}
-\end{frame}
+\section{Discussion}
 
 
 
@@ -280,136 +238,48 @@ double integrand(double x) {
 
 
 
-\begin{frame}[fragile]{Fortran Basic: Fortran is formatted}
-
-\begin{minipage}{0.45\textwidth}
-Fortran 77
-\begin{itemize}
-	\item Fixed Format
-	\item 1-72 char
-\end{itemize}
-\begin{lstlisting}
-Program Test
-declare
-...
-Stop
-End
-\end{lstlisting}
-\end{minipage}
-\hspace{20pt}
-\begin{minipage}{0.45\textwidth}
-Fortran 90
-\begin{itemize}
-	\item Free Format
-	\item 1-132 char
-\end{itemize}
-\begin{lstlisting}
-Program test
-declare
-...
-End program test
-\end{lstlisting}
-\end{minipage}
-\end{frame}
-
-\begin{frame}[fragile]{Fortran Basic: Fixed Format}
-``Fixed Format'' regulates different roles of character positions. Columns 7-72 are used for coding. The first 5 columns can only be blank or contain a numeric label. Column 6 can only be a nonblank, nonzero character to be identified as a  continuation line.
-%\begin{table}[]
-%\begin{tabular}{|l|l|}
-%\hline
-%Column(s) & Illustration                                                                              \\ \hline
-%1         & If it is ‘C’, ‘c’, or ‘*’, this line will be treated as comment and not be compiled.      \\ \hline
-%1-5       & If a number is put here, it is the lable of the line. Otherwise, it can only be blank.    \\ \hline
-%6         & Except zero or blank, any character here indicates that this line is a continuation line. \\ \hline
-%7-72      & Coding region.                                                                            \\ \hline
-%after 73  & Not using. Anything here will be omitted. Some compilers could report error message.      \\ \hline
-%\end{tabular}
-%\end{table}
-\end{frame}
+\end{multicols}
 
 
-
-%\begin{frame}[fragile]{Introduction: blah blah} %You can change fragile by standout
-%Text Text Text Text. \\You can change the size of the footnote text like  Text\footnote{\small{ here.}} Text\footnote{\large{And here.}} Text\footnote{\tiny{And here.}}
-%\begin{itemize} %The symbol of the items can be changed by which ever you want, this is just an example.
-%    \item[$\diamond$] Text,
-%    \item[$\diamond$] Text,
-%    \item[$\diamond$] Text.
-%\end{itemize}
-%An equation without number could be represented by:
-%\begin{equation*}
-%    c^{2} = a^{2} + b^{2}
-%\end{equation*}
-%That's all for this slide.
-%\end{frame}
-
-
-%\begin{frame}[standout]{This is other type of slide}
-%There is some text here.
-%And an equation with number:
-%\begin{equation}
-%    E^{2} = m^{2} + p^{2}
-%\end{equation}
-%\end{frame}
-
-
-%\begin{frame}{Include a Figure}
-%\begin{small}
-%Something about the fig.
-%\end{small}
-%\begin{figure}
-%\centering
-%\includegraphics[width=0.7\textwidth]{./fig/fig1}
-%\caption{Screenshot from the IMDb website.}
-%\label{fig1}
-%\end{figure}
-%\end{frame}
-
-
-%\begin{frame}[fragile]{Another way to include a Figure}
-%\begin{minipage}{0.45\textwidth}
-%\begin{enumerate}
-%	\item Released in 2014
-%	\item A comedy-drama
-%	\item Directed by Wes Anderson
-%\end{enumerate}
-%\end{minipage}
-%\hspace{20pt}
-%\begin{minipage}{0.45\textwidth}
-%\begin{figure}
-%\centering
-%\includegraphics[width = 0.8\textwidth]{./fig/poster.jpg}
-%\caption{Poster.}
-%\label{fig1}
-%\end{figure}
-%\end{minipage}
-%\end{frame}
-
-
-
-%\section{Final section}
-%
-%\begin{frame}{Conclusion}
-%    These are the final words, you do your best to try to wake up everyone that was listening to your talk.
-%\end{frame}
-
-
-%{\setbeamercolor{palette primary}{fg=black, bg=orange!30} %You can change the colours
-%\begin{frame}[standout]
-%  Thank you! And thank to yourself because you did all the job. 
-%\end{frame}
-%}
-
-%\section{Bibliography}
-%
-%\begin{frame}[allowframebreaks]{Bibliography}
-%\nocite{*}
-%\bibliographystyle{unsrt}
-%\bibliography{./bibliography.bib}
-%\end{frame}
-
-
+\newpage
+\section*{Acknowledgments}
+This is a final report for a course on the Computer Programming on Geosciences, written by a senior student from the Department of Physics at National Taiwan University. Please note that I have tried my best to eliminate typos and errors. So if there are any, they are unintentional, and I ask for your understanding and forgiveness.
+\section*{Author Declarations}
+\subsection*{Conflict Of Interest}
+The authors have no conflicts to disclose.
+\newpage
+\nocite{*}
+\bibliographystyle{unsrt}
+\bibliography{./bibliography.bib}
 \end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
