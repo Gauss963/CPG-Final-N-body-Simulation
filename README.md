@@ -75,10 +75,18 @@ G = 1.0
 
 ## User Guide
 
+### Frontend
+
+There is only 1 frontend in this project, the `Python Frontend` is used to do all the plots. The reason I did not use `PGPLOT` was because using `Matplotlib` was way easier and I can focus optimizing the backends.
+
+### Backend
+
+There are 3 backend you can use in this project. The `Python Backend`, `FORTRAN Backend`, and `C++ Backend`. The backends did all the simulation works and save all the datas in the `./data/*.bin`.
+
 Simple description of how to run your simulation and analysis programs.
 
-1. Compile `./code/Simulation.cc`
-2. run `./code/Simulation && python3 ./code/PlotFunctions.py`
+1. Compile `./code/Simulation.cc`, `./code/Simulation.f90`
+2. run `./code/Simulation_cc && python3 ./code/PlotFunctions.py` or `./code/Simulation_FF && python3 ./code/PlotFunctions.py`
 3. Check statistics plots in `./code/plot/`
 4. run `python3 ./code/Simulation.py` and set `make_animation = True` and `python3 ./code/FolderActions.py` to make animation.
 5. Check animation in `./animation/*.mp4`

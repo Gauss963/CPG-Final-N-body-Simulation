@@ -229,7 +229,47 @@ In summary, while total energy is reasonably well conserved for smaller systems,
 
 
 
+%\section{Discussion}
 \section{Discussion}
+
+The results presented in this work highlight both the capabilities and the limitations of our current $N$-body simulation approach. By examining key physical invariants—particularly total angular momentum and total energy—we gain insights into the accuracy and stability of our chosen numerical methods.
+
+\subsection*{Angular Momentum Conservation}
+
+The angular momentum results confirm that, for a wide range of particle numbers ($N = 32$ to $256$), the system retains its rotational invariants with only minimal numerical drift. Angular momentum deviations remain on the order of $10^{-9}$ to $10^{-11}$, even though the total angular momentum itself is on the order of $10^1$. This minuscule relative error suggests that the core integration scheme and collision model effectively preserve rotational characteristics over the simulated timescales. The stability of angular momentum across increasing complexity and particle number is encouraging and points to the robustness of the underlying algorithms used to approximate gravitational forces and handle particle interactions.
+
+\subsection*{Energy Conservation and Scaling Challenges}
+
+In contrast, energy conservation proves more challenging as $N$ grows. For small systems ($N = 32$ and $N = 64$), total energy remains relatively stable, indicating that the simple integration scheme and chosen timestep sizes are adequate for these modest scales. As we move to $N = 128$, fluctuations in total energy become more pronounced, yet still manageable, reflecting the increasing complexity and frequency of gravitational interactions and close encounters.
+
+However, by $N = 256$, the simulation struggles to maintain energy conservation. The significant drift observed in total energy suggests that numerical errors accumulate more rapidly in dense and dynamically active environments. Factors contributing to this drift include:
+
+\begin{itemize}
+    \item \textbf{Integration Method Limitations:} While straightforward integrators like the Euler or low-order schemes are easy to implement, they do not guarantee long-term conservation of energy. The cumulative effect of truncation errors becomes substantial as $N$ increases.
+    \item \textbf{Collision Handling:} Although our elastic collision model conserves momentum and kinetic energy in the instantaneous interaction, multiple collisions and close encounters introduce subtle numerical artifacts. Over many timesteps, small inaccuracies can accumulate, contributing to observable energy drift.
+    \item \textbf{Parameter Choices:} A fixed timestep $\Delta t$ may be appropriate for small $N$ but becomes less optimal for larger systems that contain regions of high density and rapidly changing gravitational potentials. Without adaptive refinement, large systems can rapidly develop unstable numerical behaviors.
+\end{itemize}
+
+\subsection*{Implications for Large-Scale Simulations}
+
+The observed energy drift at higher $N$ highlights the need for more sophisticated integration strategies when scaling up simulations. Approaches such as symplectic integrators, velocity Verlet, or other higher-order methods can provide more accurate long-term energy conservation. Additionally, adaptive timestep selection—where smaller timesteps are used during close encounters or in dense regions—could mitigate some of the errors that accumulate in large, complex systems.
+
+Beyond integration methods, data structures like the Barnes–Hut tree, which have already proven effective in reducing computational complexity, can be further optimized. More accurate cell-opening criteria or hybrid approaches that combine direct summation for near-neighbors with Barnes–Hut approximations for distant particles might yield improved stability.
+
+Finally, considering that this study utilized relatively small particle numbers compared to state-of-the-art astrophysical simulations, these findings underscore the importance of careful algorithmic choices as we approach massively parallel, million- or billion-particle simulations. The lessons learned here—balancing accuracy, efficiency, and stability—are directly relevant to advancing the field of computational astrophysics, where precise $N$-body solvers underpin our understanding of gravitational clustering, galaxy formation, and large-scale cosmological structures.
+
+\subsection*{Future Directions}
+
+Moving forward, several improvements are possible:
+
+\begin{itemize}
+    \item \textbf{Higher-Order and Symplectic Integrators:} Implementing integrators designed to conserve phase-space volume and energy more rigorously over long timescales could yield more stable results, especially for large $N$.
+    \item \textbf{Adaptive Timestepping:} Dynamically adjusting the timestep in response to the system’s local conditions would help resolve close encounters more accurately, reducing the accumulation of numerical errors.
+    \item \textbf{Refined Collision Models:} Incorporating more physically realistic collision treatments or implementing methods that minimize unphysical overlapping states could improve overall energy stability.
+    \item \textbf{Scaling Tests:} Testing larger $N$ systems, perhaps combined with GPU acceleration or parallel computing strategies, would provide valuable insight into how well these solutions scale and where bottlenecks occur.
+\end{itemize}
+
+In conclusion, while our simulations demonstrate stable angular momentum conservation and reliable energy behavior for smaller $N$, the results at higher $N$ emphasize the need for more advanced numerical techniques. By refining our integration schemes, timestepping strategies, and collision handling, we can push toward more accurate, stable, and scalable $N$-body simulations, ultimately gaining a deeper understanding of gravitational interactions in complex astrophysical environments.
 
 
 
@@ -241,7 +281,7 @@ In summary, while total energy is reasonably well conserved for smaller systems,
 \end{multicols}
 
 
-\newpage
+%\newpage
 \section*{Acknowledgments}
 This is a final report for a course on the Computer Programming on Geosciences, written by a senior student from the Department of Physics at National Taiwan University. Please note that I have tried my best to eliminate typos and errors. So if there are any, they are unintentional, and I ask for your understanding and forgiveness.
 \section*{Author Declarations}
