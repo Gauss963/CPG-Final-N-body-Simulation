@@ -32,6 +32,8 @@
 \usepackage{subfig}
 \usepackage[subfigure]{tocloft}
 
+\usepackage{authblk}
+
 
 \newcommand{\cald}{{\rm d}}
 \renewcommand\thesection{\Roman{section}}
@@ -44,15 +46,19 @@
 \setlength{\parindent}{2em}
 
 
-\begin{document}
 \title{Mapping the Dance of the Stars:\\Unveiling the Dynamics of N-Body Simulations}
-\author{Gauss T. Chang
-\thanks{Department of Physics, National Taiwan University, Taipei, Taiwan 
-\texttt{b09501028@ntu.edu.tw}}}
+
+\author[$^\dagger$]{Gauss T. Chang}
+\affil[$^\dagger$]{\textit{Department of Physics, National Taiwan University, Taipei, Taiwan}\\\texttt{b09501028@ntu.edu.tw}}
+
 
 
 \date{\DTMdate{2024-12-17}}
+
+
+\begin{document}
 \maketitle
+
 \begin{abstract}
 	The N-body problem lies at the heart of understanding complex gravitational interactions, from planetary systems to galactic dynamics. This article explores the computational approach to solving the N-body problem, leveraging the power of Fortran for efficient simulation. I analyze the evolution of the system's energy and angular momentum to ensure conservation laws are upheld, a crucial benchmark for the accuracy of numerical methods. Additionally, statistical analyses provide insights into the emergent behaviors and stability of the system, further illustrating the robustness of the simulation.
 
