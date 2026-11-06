@@ -28,6 +28,19 @@ jobs:
         run: |
           "$(brew --prefix flang)/bin/flang" -O2 code/Simulation.f90 -o "$RUNNER_TEMP/Simulation_FF"
 
+      - name: Stage macOS executables
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          cp "$RUNNER_TEMP/Simulation_cc" "$RUNNER_TEMP/release-assets/CPG-Final-N-body-Simulation-cpp-macos-arm64"
+          cp "$RUNNER_TEMP/Simulation_FF" "$RUNNER_TEMP/release-assets/CPG-Final-N-body-Simulation-fortran-macos-arm64"
+
+      - name: Upload macOS executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-executables
+          path: ${{ runner.temp }}/release-assets/*
+          if-no-files-found: error
+
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
@@ -38,16 +51,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Create v1.0.0 release
+      - name: Download macOS executables
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-executables
+          path: ${{ runner.temp }}/release-assets
+
+      - name: Create or update v1.0.0 release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: v1.0.0
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping."
-          else
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --target "$GITHUB_SHA" \
               --title "$GITHUB_REPOSITORY $TAG" \
               --generate-notes
           fi
+          gh release upload "$TAG" "$RUNNER_TEMP"/release-assets/* --clobber
