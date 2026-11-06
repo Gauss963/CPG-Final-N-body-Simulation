@@ -92,6 +92,10 @@ Simple description of how to run your simulation and analysis programs.
 5. Check animation in `./animation/*.mp4`
 6. Modify the parameter in `./code/config.ini`
 
+### Continuous Integration and Release
+
+GitHub Actions builds both native backends on a macOS runner: the C++ backend with Clang and the Fortran backend with Flang. The workflow runs for pull requests targeting `main` and pushes to `main`. After the first successful build on `main`, it creates the `v1.0.0` GitHub Release; subsequent builds leave that release unchanged.
+
 
 ## References
 
