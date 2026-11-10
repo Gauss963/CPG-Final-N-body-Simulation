@@ -31,7 +31,7 @@ To achieve the project's goals, I will follow these steps:
 
 3. **Force Calculation**:
    - Implement Newton's law of universal gravitation to calculate the force between each pair of particles.
-   - Try to optimize calculations using techniques like the Barnes-Hut algorithm for larger N to reduce computational complexity from O(N²) to O(N log N).
+   - The C++ and Fortran backends support Barnes–Hut gravity for larger N. They use a 3D octree to group distant masses, typically reducing the work to O(N log N).
 
 4. **Time Integration**:
    - Use numerical integration methods such as the Verlet integration or Runge-Kutta methods to update particle positions and velocities over discrete time steps.
@@ -91,6 +91,36 @@ Simple description of how to run your simulation and analysis programs.
 4. run `python3 ./code/Simulation.py` and set `make_animation = True` and `python3 ./code/FolderActions.py` to make animation.
 5. Check animation in `./animation/*.mp4`
 6. Modify the parameter in `./code/config.ini`
+
+#### Barnes–Hut in C++ and Fortran
+
+For a short trial with 4,096 particles, set `n = 12`, `dt = 0.001` and `T = 0.01` in `code/config.ini`. The supplied timing values request 100 million steps. Build from the repository root and run the executable of your choice from `code/` so it can read that file.
+
+```sh
+clang++ -std=c++17 -O2 code/Simulation.cc code/random_mt.cc -o /tmp/cpg-nbody-cpp
+gfortran -O2 code/Simulation.f90 -o /tmp/cpg-nbody-fortran
+(cd code && /tmp/cpg-nbody-cpp)
+(cd code && /tmp/cpg-nbody-fortran)
+```
+
+The supplied `code/config.ini` selects `gravity = barnes_hut` with `theta = 0.5` for both native backends. Smaller `theta` values open more cells, improving accuracy at the cost of speed. Set `theta = 0` to traverse the tree without approximating gravity, or `gravity = direct` to use pairwise gravity and collisions. Older configs without `gravity` use `direct`.
+
+In [Barnes–Hut](https://www.nature.com/articles/324446a0) mode, the octree is rebuilt as the particles move. Distant cells that satisfy `cell width / distance to center of mass < theta` approximate both gravity and potential energy; nearby particles are evaluated individually. Collision detection uses the same tree to find possible contacts and checks those pairs exactly. Dense systems with many contacts can still require quadratic work.
+
+The backends write `data/cc_energy_data_N_<N>.bin` and `data/FF_energy_data_N_<N>.bin` in the existing format, with one block of doubles each for kinetic energy, potential energy, and angular momentum magnitude. To plot the data, select the corresponding `simulator` in `code/PlotFunctions.py` and run it from `code/`.
+
+Particle counts are `N = 2^n`. The native executables accept `0 <= n <= 30` with the standard 32-bit integer builds. The practical limit depends on available memory, the number of time steps, and the density of contacts. The three diagnostic arrays use `24 * floor(T / dt)` bytes before accounting for particles and the tree.
+
+Run the comparison script to time both backends and compare their diagnostics over the same steps.
+
+```sh
+python3 code/compare_backends.py /tmp/cpg-nbody-cpp /tmp/cpg-nbody-fortran
+python3 code/compare_backends.py /tmp/cpg-nbody-cpp /tmp/cpg-nbody-fortran --tree-only --exponents 17 20 --steps 1 --repeats 1
+```
+
+The script supplies both programs with the same optional `initial_conditions` file in the `[Simulation]` section. The file contains `N` records of eight native-endian 64-bit floats in order `x, y, z, vx, vy, vz, mass, radius`. Relative paths are resolved from the simulation's working directory. The benchmark uses fixed initial conditions, `theta = 0.5`, and `dt = 2^-17`. Its timings include process startup and I/O.
+
+On an Apple M2 with 8 GiB of RAM, Clang and GNU Fortran builds at `-O2` both completed a one-step run with 1,048,576 particles (`n = 20`). It took about 42 seconds in C++ and 55 seconds in Fortran. This is the largest case tested. At 16,384 particles over four steps, Barnes–Hut took 0.32 seconds in C++ and 0.52 seconds in Fortran, versus 3.15 and 6.14 seconds with direct gravity. Those four-step timings are medians of three runs.
 
 ### Continuous Integration and Release
 

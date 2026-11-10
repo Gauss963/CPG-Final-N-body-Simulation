@@ -1,88 +1,115 @@
 program Simulation
+    use iso_fortran_env, only: real64, int64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
     implicit none
-    integer, parameter :: dp = selected_real_kind(15, 307)
-    integer :: exp_val, num_particles, steps, i, j, step
-    real(dp) :: L, dt, T, G
+    integer, parameter :: dp = real64
+    integer, parameter :: leaf_capacity = 4, max_depth = 48
 
-    real(dp), allocatable :: mass(:), radius(:)
-    real(dp), allocatable :: pos(:,:), vel(:,:), acc(:,:)
+    type :: tree_node
+        integer :: first, last, children(8)
+        real(dp) :: lower(3), upper(3), center_of_mass(3)
+        real(dp) :: mass, max_radius, width_squared
+    end type tree_node
+
+    integer :: exp_val, num_particles, steps, i, step
+    real(dp) :: L, dt, T, G, step_count, initial_energy
+    logical :: use_tree = .false.
+    real(dp) :: theta = 0.5_dp
+    character(len=256) :: initial_conditions = ''
+
+    real(dp), allocatable :: mass(:), radius(:), pos(:,:), vel(:,:), acc(:,:)
     real(dp), allocatable :: total_kinetic_energy(:), total_potential_energy(:), total_angular_momentum(:)
-    integer :: unit_particle_data, unit_energy_data
-    character(len=100) :: pc_filename, eg_filename
-
-    integer :: seed_size
+    integer :: unit_energy_data, ios, command_status, seed_size
+    character(len=100) :: eg_filename
     integer, allocatable :: seed(:)
 
-    call read_config("config.ini", exp_val, L, dt, T, G)
+    type(tree_node), allocatable :: nodes(:)
+    integer, allocatable :: order(:), scratch(:), rank(:), contacts(:)
+    integer :: node_count
+
+    call read_config("config.ini")
+    if (exp_val < 0 .or. exp_val >= digits(num_particles)) error stop 'n is outside the range for N = 2^n'
+    if (.not. ieee_is_finite(L) .or. L <= 0.0_dp .or. .not. ieee_is_finite(G)) then
+        error stop 'L must be positive and G must be finite'
+    end if
+    if (.not. ieee_is_finite(dt) .or. dt <= 0.0_dp .or. .not. ieee_is_finite(T) .or. T < 0.0_dp) then
+        error stop 'Invalid dt or T'
+    end if
+    step_count = T / dt
+    if (step_count > real(huge(steps), dp)) error stop 'Too many time steps'
     num_particles = 2**exp_val
-    steps = int(T/dt)
+    steps = int(step_count)
 
-    allocate(mass(num_particles), radius(num_particles), pos(3,num_particles), vel(3,num_particles), acc(3,num_particles))
-    allocate(total_kinetic_energy(steps), total_potential_energy(steps), total_angular_momentum(steps))
+    allocate(mass(num_particles), radius(num_particles), pos(3,num_particles), &
+             vel(3,num_particles), acc(3,num_particles), stat=ios)
+    if (ios /= 0) error stop 'Not enough memory for the particles'
+    allocate(total_kinetic_energy(steps), total_potential_energy(steps), total_angular_momentum(steps), stat=ios)
+    if (ios /= 0) error stop 'Not enough memory for the time series'
 
-    call random_seed(size=seed_size)
-    allocate(seed(seed_size))
-    seed = 42
-    call random_seed(put=seed)
+    if (len_trim(initial_conditions) == 0) then
+        call random_seed(size=seed_size)
+        allocate(seed(seed_size))
+        seed = 42
+        call random_seed(put=seed)
+        call init_particles(num_particles, L, mass, radius, pos, vel)
+    else
+        call read_particles(initial_conditions)
+    end if
 
-    ! call random_seed()
-    call init_particles(num_particles, L, mass, radius, pos, vel)
+    if (use_tree) then
+        write(*,'(A,F0.4,A)') 'Gravity: barnes_hut (theta=', theta, ')'
+        allocate(nodes(min(num_particles, 1024)), order(num_particles), scratch(num_particles), &
+                 rank(num_particles), contacts(num_particles), stat=ios)
+        if (ios /= 0) error stop 'Not enough memory for the octree'
+    else
+        write(*,'(A)') 'Gravity: direct'
+    end if
 
-    ! write(pc_filename,'("../data/FF_particle_data_N_",I0,".bin")') num_particles
-    ! open(newunit=unit_particle_data, file=pc_filename, form='unformatted', access='stream', status='replace')
-
-    write(eg_filename,'("../data/FF_energy_data_N_",I0,".bin")') num_particles
-    open(newunit=unit_energy_data, file=eg_filename, form='unformatted', access='stream', status='replace')
-
+    ! The tree and accelerations from the previous evaluation belong to the current positions.
+    if (steps > 0) call evaluate_gravity(initial_energy)
     do step = 1, steps
-        write(*,*) "Step ", step, "/", steps, " Progress: ", (step * 100.0 / steps)
+        write(*,*) 'Step ', step, '/', steps, ' Progress: ', (step * 100.0_dp / steps)
 
-        call compute_gravity_forces(num_particles, pos, mass, G, acc)
-        call handle_collisions(num_particles, pos, vel, mass, radius)
-
+        call handle_collisions()
         do i = 1, num_particles
-            vel(:,i) = vel(:,i) + acc(:,i)*dt
-            pos(:,i) = pos(:,i) + vel(:,i)*dt
-        enddo
+            vel(:,i) = vel(:,i) + acc(:,i) * dt
+            pos(:,i) = pos(:,i) + vel(:,i) * dt
+        end do
 
         total_kinetic_energy(step) = compute_kinetic_energy(num_particles, mass, vel)
-        total_potential_energy(step) = compute_potential_energy(num_particles, pos, mass, G)
+        call evaluate_gravity(total_potential_energy(step))
         total_angular_momentum(step) = compute_angular_momentum(num_particles, pos, vel, mass)
+    end do
 
-        ! do i = 1, num_particles
-        !     write(unit_particle_data) pos(1,i), pos(2,i), pos(3,i), vel(1,i), vel(2,i), vel(3,i), mass(i), radius(i)
-        ! enddo
-    enddo
-
-    do i = 1, steps
-        write(unit_energy_data) total_kinetic_energy(i)
-    enddo
-    do i = 1, steps
-        write(unit_energy_data) total_potential_energy(i)
-    enddo
-    do i = 1, steps
-        write(unit_energy_data) total_angular_momentum(i)
-    enddo
-
-    ! close(unit_particle_data)
-    close(unit_energy_data)
+    call execute_command_line('mkdir -p ../data', exitstat=ios, cmdstat=command_status)
+    if (command_status /= 0) error stop 'Could not create ../data'
+    if (ios /= 0) error stop 'Could not create ../data'
+    write(eg_filename,'("../data/FF_energy_data_N_",I0,".bin")') num_particles
+    open(newunit=unit_energy_data, file=eg_filename, form='unformatted', access='stream', status='replace', iostat=ios)
+    if (ios /= 0) error stop 'Could not open energy output'
+    write(unit_energy_data, iostat=ios) total_kinetic_energy, total_potential_energy, total_angular_momentum
+    if (ios /= 0) error stop 'Could not write energy output'
+    close(unit_energy_data, iostat=ios)
+    if (ios /= 0) error stop 'Could not close energy output'
 
     write(*,*) "Simulation finished."
 
 contains
 
-    subroutine read_config(filename, exp_val, L, dt, T, G)
+    subroutine read_config(filename)
         implicit none
         character(len=*), intent(in) :: filename
-        integer, intent(out) :: exp_val
-        real(dp), intent(out) :: L, dt, T, G
 
         integer :: unit, ios, eqpos
         character(len=256) :: line, section, key, val
         logical :: in_simulation_section
 
         in_simulation_section = .false.
-        exp_val = -1; L=0.0_dp; dt=0.0_dp; T=0.0_dp; G=0.0_dp
+        exp_val = -1
+        L = ieee_value(0.0_dp, ieee_quiet_nan)
+        dt = L
+        T = L
+        G = L
 
         open(newunit=unit, file=filename, form='formatted', status='old', action='read', iostat=ios)
         if (ios /= 0) then
@@ -92,9 +119,10 @@ contains
 
         do
             read(unit,'(A)', iostat=ios) line
-            if (ios /= 0) exit
+            if (is_iostat_end(ios)) exit
+            if (ios /= 0) error stop 'Could not read config.ini'
 
-            line = trim(line)
+            line = adjustl(line)
             if (len_trim(line) == 0) cycle
             if (line(1:1) == ";" .or. line(1:1) == "#") cycle
 
@@ -116,43 +144,39 @@ contains
 
                     select case (key)
                     case("n")
-                        read(val,*) exp_val
+                        read(val,*,iostat=ios) exp_val
                     case("L")
-                        read(val,*) L
+                        read(val,*,iostat=ios) L
                     case("dt")
-                        read(val,*) dt
+                        read(val,*,iostat=ios) dt
                     case("T")
-                        read(val,*) T
+                        read(val,*,iostat=ios) T
                     case("G")
-                        read(val,*) G
+                        read(val,*,iostat=ios) G
+                    case("gravity")
+                        select case (val)
+                        case ("direct")
+                            use_tree = .false.
+                        case ("barnes_hut")
+                            use_tree = .true.
+                        case default
+                            error stop "gravity must be direct or barnes_hut"
+                        end select
+                    case("theta")
+                        read(val,*,iostat=ios) theta
+                    case("initial_conditions")
+                        initial_conditions = val
                     end select
+                    if (ios /= 0) error stop "Invalid numeric value in config.ini"
                 endif
             endif
         enddo
 
         close(unit)
 
-        if (exp_val<0) then
-            print *, "Missing n in config"
-            stop 1
-        endif
-        if (L==0.0_dp) then
-            print *, "Missing L in config"
-            stop 1
-        endif
-        if (dt==0.0_dp) then
-            print *, "Missing dt in config"
-            stop 1
-        endif
-        if (T==0.0_dp) then
-            print *, "Missing T in config"
-            stop 1
-        endif
-        if (G==0.0_dp) then
-            print *, "Missing G in config"
-            stop 1
-        endif
-
+        if (.not. ieee_is_finite(theta) .or. theta < 0.0_dp) then
+            error stop "theta must be a finite, non-negative number"
+        end if
     end subroutine read_config
 
     subroutine init_particles(N, L, mass, radius, pos, vel)
@@ -180,93 +204,307 @@ contains
         enddo
     end subroutine init_particles
 
-    subroutine compute_gravity_forces(N, pos, mass, G, acc)
-        implicit none
-        integer, intent(in) :: N
-        real(dp), intent(in) :: pos(3,N), mass(N), G
-        real(dp), intent(out) :: acc(3,N)
-        integer :: i, j
-        real(dp), allocatable :: forces(:,:)
-        real(dp) :: rx, ry, rz, r2, r, Fmag, invr
+    subroutine read_particles(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit, status, body
+        integer(int64) :: bytes
+        real(dp) :: record(8)
 
-        allocate(forces(3,N))
-        forces = 0.0_dp
+        open(newunit=unit, file=filename, access='stream', form='unformatted', status='old', action='read', iostat=status)
+        if (status /= 0) error stop 'Could not open initial_conditions'
+        inquire(unit=unit, size=bytes, iostat=status)
+        if (status /= 0 .or. bytes /= 64_int64 * num_particles) error stop 'Expected N records of 8 doubles'
+        do body = 1, num_particles
+            read(unit, iostat=status) record
+            if (status /= 0) error stop 'Could not read initial_conditions'
+            if (.not. all(ieee_is_finite(record)) .or. record(7) <= 0.0_dp .or. record(8) < 0.0_dp) then
+                error stop 'Invalid particle in initial_conditions'
+            end if
+            pos(:,body) = record(1:3)
+            vel(:,body) = record(4:6)
+            mass(body) = record(7)
+            radius(body) = record(8)
+        end do
+        close(unit)
+    end subroutine read_particles
 
-        do i = 1, N
-            do j = i+1, N
-                rx = pos(1,j)-pos(1,i)
-                ry = pos(2,j)-pos(2,i)
-                rz = pos(3,j)-pos(3,i)
-                r2 = rx*rx + ry*ry + rz*rz
-                if (r2 > 0.0_dp) then
-                    r = sqrt(r2)
-                    Fmag = G*mass(i)*mass(j)/r2
-                    invr = 1.0_dp/r
-                    forces(1,i) = forces(1,i) + Fmag*rx*invr
-                    forces(2,i) = forces(2,i) + Fmag*ry*invr
-                    forces(3,i) = forces(3,i) + Fmag*rz*invr
-                    forces(1,j) = forces(1,j) - Fmag*rx*invr
-                    forces(2,j) = forces(2,j) - Fmag*ry*invr
-                    forces(3,j) = forces(3,j) - Fmag*rz*invr
-                endif
-            enddo
-        enddo
+    subroutine evaluate_gravity(potential)
+        real(dp), intent(out) :: potential
+        real(dp) :: particle_potential, theta_squared
+        integer :: body, root
 
-        do i = 1, N
-            acc(:,i) = forces(:,i)/mass(i)
-        enddo
+        if (.not. use_tree) then
+            call direct_gravity(potential)
+            return
+        end if
 
-        deallocate(forces)
-    end subroutine compute_gravity_forces
+        node_count = 0
+        do body = 1, num_particles
+            order(body) = body
+        end do
+        call build_node(1, num_particles + 1, 0, root)
+        do body = 1, num_particles
+            rank(order(body)) = body
+        end do
 
-    subroutine handle_collisions(N, pos, vel, mass, radius)
-        implicit none
-        integer, intent(in) :: N
-        real(dp), intent(inout) :: pos(3,N), vel(3,N)
-        real(dp), intent(in) :: mass(N), radius(N)
-        integer :: i, j
-        real(dp) :: rx, ry, rz, dist, rad_sum
-        real(dp) :: vxr, vyr, vzr, vdotn, nx, ny, nz
-        real(dp) :: m1, m2, Jimp
+        theta_squared = theta * theta
+        potential = 0.0_dp
+        do body = 1, num_particles
+            acc(:,body) = 0.0_dp
+            particle_potential = 0.0_dp
+            call accumulate_gravity(root, rank(body), pos(:,body), theta_squared, acc(:,body), particle_potential)
+            potential = potential + mass(body) * particle_potential
+        end do
+        potential = 0.5_dp * potential
+    end subroutine evaluate_gravity
 
-        do i = 1, N
-            do j = i+1, N
-                rx = pos(1,j)-pos(1,i)
-                ry = pos(2,j)-pos(2,i)
-                rz = pos(3,j)-pos(3,i)
-                dist = sqrt(rx*rx+ry*ry+rz*rz)
-                rad_sum = radius(i)+radius(j)
-                if (dist <= rad_sum) then
-                    if (dist == 0.0_dp) cycle
-                    nx = rx/dist
-                    ny = ry/dist
-                    nz = rz/dist
+    subroutine direct_gravity(potential)
+        real(dp), intent(out) :: potential
+        real(dp) :: delta(3), direction(3), r2, inv_r, scale
+        integer :: a, b
 
-                    vxr = vel(1,i)-vel(1,j)
-                    vyr = vel(2,i)-vel(2,j)
-                    vzr = vel(3,i)-vel(3,j)
+        potential = 0.0_dp
+        acc = 0.0_dp
+        do a = 1, num_particles
+            do b = a + 1, num_particles
+                delta = pos(:,b) - pos(:,a)
+                r2 = dot_product(delta, delta)
+                if (r2 == 0.0_dp) cycle
+                inv_r = 1.0_dp / sqrt(r2)
+                scale = G / r2
+                direction = inv_r * delta
+                acc(:,a) = acc(:,a) + (scale * mass(b)) * direction
+                acc(:,b) = acc(:,b) - (scale * mass(a)) * direction
+                potential = potential - G * mass(a) * mass(b) * inv_r
+            end do
+        end do
+    end subroutine direct_gravity
 
-                    vdotn = vxr*nx + vyr*ny + vzr*nz
+    integer function octant(position, midpoint) result(oct)
+        real(dp), intent(in) :: position(3), midpoint(3)
+        oct = 1
+        if (position(1) >= midpoint(1)) oct = oct + 1
+        if (position(2) >= midpoint(2)) oct = oct + 2
+        if (position(3) >= midpoint(3)) oct = oct + 4
+    end function octant
 
-                    if (vdotn > 0.0_dp) cycle
+    recursive subroutine build_node(first, last, depth, id)
+        integer, intent(in) :: first, last, depth
+        integer, intent(out) :: id
+        type(tree_node) :: node
+        type(tree_node), allocatable :: grown(:)
+        real(dp) :: extent(3), midpoint(3), width
+        integer :: p, body, offsets(9), next(9), oct, child, slot, status
 
-                    m1 = mass(i)
-                    m2 = mass(j)
-                    Jimp = (2.0_dp * vdotn) / (1.0_dp/m1 + 1.0_dp/m2)
+        node_count = node_count + 1
+        id = node_count
+        if (id > size(nodes)) then
+            allocate(grown(min(2_int64 * size(nodes), int(huge(id), int64))), stat=status)
+            if (status /= 0) error stop 'Not enough memory for the octree'
+            grown(1:size(nodes)) = nodes
+            call move_alloc(grown, nodes)
+        end if
 
-                    vel(1,i) = vel(1,i) - (Jimp*nx)/m1
-                    vel(2,i) = vel(2,i) - (Jimp*ny)/m1
-                    vel(3,i) = vel(3,i) - (Jimp*nz)/m1
+        node%first = first
+        node%last = last
+        node%children = 0
+        node%lower = pos(:,order(first))
+        node%upper = node%lower
+        node%mass = 0.0_dp
+        node%center_of_mass = 0.0_dp
+        node%max_radius = 0.0_dp
+        do p = first, last - 1
+            body = order(p)
+            node%lower = min(node%lower, pos(:,body))
+            node%upper = max(node%upper, pos(:,body))
+            node%mass = node%mass + mass(body)
+            node%center_of_mass = node%center_of_mass + mass(body) * pos(:,body)
+            node%max_radius = max(node%max_radius, radius(body))
+        end do
+        extent = node%upper - node%lower
+        width = maxval(extent)
+        node%width_squared = width * width
+        node%center_of_mass = node%center_of_mass / node%mass
+        nodes(id) = node
+        if (last - first <= leaf_capacity .or. width == 0.0_dp .or. depth == max_depth) return
 
-                    vel(1,j) = vel(1,j) + (Jimp*nx)/m2
-                    vel(2,j) = vel(2,j) + (Jimp*ny)/m2
-                    vel(3,j) = vel(3,j) + (Jimp*nz)/m2
-                endif
-            enddo
-        enddo
+        ! Partition indices by the octants of the tight bounding box.
+        midpoint = node%lower + 0.5_dp * extent
+        where (midpoint == node%lower) midpoint = node%upper
+        offsets = 0
+        offsets(1) = first
+        do p = first, last - 1
+            oct = octant(pos(:,order(p)), midpoint)
+            offsets(oct + 1) = offsets(oct + 1) + 1
+        end do
+        do oct = 1, 8
+            offsets(oct + 1) = offsets(oct + 1) + offsets(oct)
+        end do
+        next = offsets
+        do p = first, last - 1
+            body = order(p)
+            oct = octant(pos(:,body), midpoint)
+            scratch(next(oct)) = body
+            next(oct) = next(oct) + 1
+        end do
+        order(first:last-1) = scratch(first:last-1)
 
+        slot = 0
+        do oct = 1, 8
+            if (offsets(oct) == offsets(oct + 1)) cycle
+            call build_node(offsets(oct), offsets(oct + 1), depth + 1, child)
+            slot = slot + 1
+            nodes(id)%children(slot) = child
+        end do
+    end subroutine build_node
+
+    subroutine add_gravity(delta, r2, gm, acceleration, potential)
+        real(dp), intent(in) :: delta(3), r2, gm
+        real(dp), intent(inout) :: acceleration(3), potential
+        real(dp) :: inv_r, scale
+
+        if (r2 == 0.0_dp) return
+        inv_r = 1.0_dp / sqrt(r2)
+        scale = gm / r2
+        acceleration = acceleration + scale * (inv_r * delta)
+        potential = potential - gm * inv_r
+    end subroutine add_gravity
+
+    recursive subroutine accumulate_gravity(id, target, position, theta_squared, acceleration, potential)
+        integer, intent(in) :: id, target
+        real(dp), intent(in) :: position(3), theta_squared
+        real(dp), intent(inout) :: acceleration(3), potential
+        integer :: p, source, slot, child
+        real(dp) :: delta(3), r2
+
+        if (nodes(id)%children(1) == 0) then
+            do p = nodes(id)%first, nodes(id)%last - 1
+                if (p == target) cycle
+                source = order(p)
+                delta = pos(:,source) - position
+                call add_gravity(delta, dot_product(delta, delta), G * mass(source), acceleration, potential)
+            end do
+            return
+        end if
+
+        ! A cell containing the target must open to avoid self-gravity.
+        if (target < nodes(id)%first .or. target >= nodes(id)%last) then
+            delta = nodes(id)%center_of_mass - position
+            r2 = dot_product(delta, delta)
+            if (nodes(id)%width_squared < theta_squared * r2) then
+                call add_gravity(delta, r2, G * nodes(id)%mass, acceleration, potential)
+                return
+            end if
+        end if
+        do slot = 1, 8
+            child = nodes(id)%children(slot)
+            if (child == 0) exit
+            call accumulate_gravity(child, target, position, theta_squared, acceleration, potential)
+        end do
+    end subroutine accumulate_gravity
+
+    subroutine handle_collisions()
+        integer :: a, b, count, p
+
+        do a = 1, num_particles - 1
+            if (use_tree) then
+                count = 0
+                call find_contacts(1, a, count)
+                ! Apply the impulses in the same pair order as the direct solver.
+                call sort_contacts(1, count)
+                do p = 1, count
+                    call collide(a, contacts(p))
+                end do
+            else
+                do b = a + 1, num_particles
+                    call collide(a, b)
+                end do
+            end if
+        end do
     end subroutine handle_collisions
 
+    recursive subroutine find_contacts(id, a, count)
+        integer, intent(in) :: id, a
+        integer, intent(inout) :: count
+        integer :: p, b, slot, child
+        real(dp) :: offset(3)
+
+        offset = max(nodes(id)%lower - pos(:,a), pos(:,a) - nodes(id)%upper, 0.0_dp)
+        if (norm(offset) > radius(a) + nodes(id)%max_radius) return
+        if (nodes(id)%children(1) == 0) then
+            do p = nodes(id)%first, nodes(id)%last - 1
+                b = order(p)
+                if (b <= a) cycle
+                if (norm(pos(:,a) - pos(:,b)) <= radius(a) + radius(b)) then
+                    count = count + 1
+                    contacts(count) = b
+                end if
+            end do
+            return
+        end if
+        do slot = 1, 8
+            child = nodes(id)%children(slot)
+            if (child == 0) exit
+            call find_contacts(child, a, count)
+        end do
+    end subroutine find_contacts
+
+    recursive subroutine sort_contacts(first, last)
+        integer, intent(in) :: first, last
+        integer :: lo, hi, left, right, pivot, saved
+
+        lo = first
+        hi = last
+        do while (lo < hi)
+            left = lo
+            right = hi
+            pivot = contacts(lo + (hi - lo) / 2)
+            do
+                do while (contacts(left) < pivot)
+                    left = left + 1
+                end do
+                do while (contacts(right) > pivot)
+                    right = right - 1
+                end do
+                if (left > right) exit
+                saved = contacts(left)
+                contacts(left) = contacts(right)
+                contacts(right) = saved
+                left = left + 1
+                right = right - 1
+                if (left > right) exit
+            end do
+            ! Recurse on the smaller partition to bound stack usage.
+            if (right - lo < hi - left) then
+                call sort_contacts(lo, right)
+                lo = left
+            else
+                call sort_contacts(left, hi)
+                hi = right
+            end if
+        end do
+    end subroutine sort_contacts
+
+    real(dp) function norm(vector) result(length)
+        real(dp), intent(in) :: vector(3)
+        length = sqrt(dot_product(vector, vector))
+    end function norm
+
+    subroutine collide(a, b)
+        integer, intent(in) :: a, b
+        real(dp) :: normal(3), distance, along_normal, impulse(3)
+
+        normal = pos(:,a) - pos(:,b)
+        distance = norm(normal)
+        if (distance == 0.0_dp .or. distance > radius(a) + radius(b)) return
+        normal = (1.0_dp / distance) * normal
+        along_normal = dot_product(vel(:,a) - vel(:,b), normal)
+        if (along_normal > 0.0_dp) return
+
+        impulse = ((2.0_dp * along_normal) / (1.0_dp / mass(a) + 1.0_dp / mass(b))) * normal
+        vel(:,a) = vel(:,a) - impulse / mass(a)
+        vel(:,b) = vel(:,b) + impulse / mass(b)
+    end subroutine collide
     function compute_kinetic_energy(N, mass, vel) result(KE)
         implicit none
         integer, intent(in) :: N
@@ -279,28 +517,6 @@ contains
             KE = KE + 0.5_dp*mass(i)*v2
         enddo
     end function compute_kinetic_energy
-
-    function compute_potential_energy(N, pos, mass, G) result(PE)
-        implicit none
-        integer, intent(in) :: N
-        real(dp), intent(in) :: pos(3,N), mass(N), G
-        real(dp) :: PE
-        integer :: i,j
-        real(dp) :: rx, ry, rz, r2, r
-        PE = 0.0_dp
-        do i = 1, N
-            do j = i+1, N
-                rx = pos(1,j)-pos(1,i)
-                ry = pos(2,j)-pos(2,i)
-                rz = pos(3,j)-pos(3,i)
-                r2 = rx*rx+ry*ry+rz*rz
-                if (r2 > 0.0_dp) then
-                    r = sqrt(r2)
-                    PE = PE - G*mass(i)*mass(j)/r
-                endif
-            enddo
-        enddo
-    end function compute_potential_energy
 
     function compute_angular_momentum(N, pos, vel, mass) result(L_mag)
         implicit none

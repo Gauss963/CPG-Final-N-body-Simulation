@@ -24,9 +24,17 @@ jobs:
       - name: Build C++ backend with Clang
         run: clang++ -std=c++17 -O2 code/Simulation.cc code/random_mt.cc -o "$RUNNER_TEMP/Simulation_cc"
 
+      - name: Test C++ Barnes–Hut solver
+        run: |
+          clang++ -std=c++17 -O2 code/test_barnes_hut.cc -o "$RUNNER_TEMP/test_barnes_hut"
+          "$RUNNER_TEMP/test_barnes_hut"
+
       - name: Build Fortran backend with Flang
         run: |
           "$(brew --prefix flang)/bin/flang" -O2 code/Simulation.f90 -o "$RUNNER_TEMP/Simulation_FF"
+
+      - name: Compare C++ and Fortran diagnostics
+        run: python3 code/compare_backends.py "$RUNNER_TEMP/Simulation_cc" "$RUNNER_TEMP/Simulation_FF" --check
 
       - name: Stage macOS executables
         run: |

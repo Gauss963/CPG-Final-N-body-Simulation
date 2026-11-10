@@ -1,13 +1,15 @@
+#include "BarnesHut.h"
+
 #include <iostream>
-#include <vector>
 #include <random>
-#include <cmath>
+#include <filesystem>
 #include <fstream>
-#include <array>
+#include <limits>
 #include <string>
-#include <sstream>
 #include <map>
 #include <stdexcept>
+
+enum class GravityMethod { direct, barnes_hut };
 
 struct Config {
     int n;
@@ -15,6 +17,9 @@ struct Config {
     double dt;
     double T;
     double G;
+    GravityMethod gravity = GravityMethod::direct;
+    double theta = 0.5;
+    std::string initial_conditions;
 };
 
 Config read_config(const std::string& filename) {
@@ -28,7 +33,7 @@ Config read_config(const std::string& filename) {
     std::map<std::string, std::string> kv;
 
     while (std::getline(file, line)) {
-        while (!line.empty() && (line.back() == ' ' || line.back() == '\t')) line.pop_back();
+        while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) line.pop_back();
         while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) line.erase(line.begin());
 
         if (line.empty() || line[0] == ';' || line[0] == '#') {
@@ -85,72 +90,65 @@ Config read_config(const std::string& filename) {
         c.G = std::stod(kv["G"]);
     }
 
+    if (const auto method = kv.find("gravity"); method != kv.end()) {
+        if (method->second == "barnes_hut") {
+            c.gravity = GravityMethod::barnes_hut;
+        } else if (method->second != "direct") {
+            throw std::runtime_error("gravity must be direct or barnes_hut");
+        }
+    }
+    if (const auto theta = kv.find("theta"); theta != kv.end()) {
+        std::size_t parsed = 0;
+        c.theta = std::stod(theta->second, &parsed);
+        if (parsed != theta->second.size() || !std::isfinite(c.theta) || c.theta < 0.0) {
+            throw std::runtime_error("theta must be a finite, non-negative number");
+        }
+    }
+    if (const auto initial = kv.find("initial_conditions"); initial != kv.end()) {
+        c.initial_conditions = initial->second;
+    }
     return c;
 }
 
-struct PointMass {
-    double mass;
-    std::array<double, 3> position;
-    std::array<double, 3> velocity;
-    std::array<double, 3> acceleration;
-    double radius;
-    
-    PointMass(double m,
-              const std::array<double,3>& pos,
-              const std::array<double,3>& vel,
-              double r)
-    : mass(m), position(pos), velocity(vel), radius(r)
-    {
-        acceleration = {0.0, 0.0, 0.0};
-    }
-
-    void apply_force(const std::array<double,3>& force) {
-        for (int i=0; i<3; i++) {
-            acceleration[i] = force[i] / mass;
+static void initialize_particles(std::vector<PointMass>& particles, int count, const Config& config) {
+    if (!config.initial_conditions.empty()) {
+        std::ifstream input(config.initial_conditions, std::ios::binary | std::ios::ate);
+        const auto bytes = static_cast<std::streamoff>(count) * 8 * sizeof(double);
+        if (!input || input.tellg() != static_cast<std::streamoff>(bytes)) {
+            throw std::runtime_error("Expected N records of 8 doubles in " + config.initial_conditions);
         }
-    }
-
-    void update(double dt) {
-        for (int i=0; i<3; i++) {
-            velocity[i] += acceleration[i] * dt;
-            position[i] += velocity[i] * dt;
+        input.seekg(0);
+        for (int i = 0; i < count; ++i) {
+            std::array<double, 8> record;
+            if (!input.read(reinterpret_cast<char*>(record.data()), sizeof(record)) ||
+                !std::all_of(record.begin(), record.end(), [](double v) { return std::isfinite(v); }) ||
+                record[6] <= 0 || record[7] < 0) {
+                throw std::runtime_error("Invalid particle in " + config.initial_conditions);
+            }
+            particles.emplace_back(record[6], Vec3{record[0], record[1], record[2]},
+                                   Vec3{record[3], record[4], record[5]}, record[7]);
         }
+        return;
     }
-};
 
-static inline double norm(const std::array<double,3>& v) {
-    return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    std::mt19937 gen(42);
+    std::uniform_real_distribution<double> mass_dist(1.0, 2.0);
+    std::uniform_real_distribution<double> pos_dist(-config.L / 2.0, config.L / 2.0);
+    std::uniform_real_distribution<double> vel_dist(-1.0, 1.0);
+    std::uniform_real_distribution<double> rad_dist(0.001, 0.05);
+    for (int i = 0; i < count; ++i) {
+        Vec3 pos = {pos_dist(gen), pos_dist(gen), pos_dist(gen)};
+        Vec3 vel = {vel_dist(gen), vel_dist(gen), vel_dist(gen)};
+        double m = mass_dist(gen);
+        double r = rad_dist(gen);
+        particles.emplace_back(m, pos, vel, r);
+    }
 }
 
-static inline double dot(const std::array<double,3>& a, const std::array<double,3>& b) {
-    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-}
-
-static inline std::array<double,3> cross(const std::array<double,3>& a, const std::array<double,3>& b) {
+static Vec3 cross(const Vec3& a, const Vec3& b) {
     return {a[1]*b[2]-a[2]*b[1],
             a[2]*b[0]-a[0]*b[2],
             a[0]*b[1]-a[1]*b[0]};
-}
-
-static inline std::array<double,3> operator-(const std::array<double,3>& a, const std::array<double,3>& b) {
-    return {a[0]-b[0], a[1]-b[1], a[2]-b[2]};
-}
-
-static inline std::array<double,3> operator+(const std::array<double,3>& a, const std::array<double,3>& b) {
-    return {a[0]+b[0], a[1]+b[1], a[2]+b[2]};
-}
-
-static inline std::array<double,3> operator*(double s, const std::array<double,3>& v) {
-    return {s*v[0], s*v[1], s*v[2]};
-}
-
-static inline std::array<double,3> operator/(const std::array<double,3>& v, double s) {
-    return {v[0]/s, v[1]/s, v[2]/s};
-}
-
-bool check_collision(const PointMass& a, const PointMass& b) {
-    double dist = norm(a.position - b.position);
-    return dist <= (a.radius + b.radius);
 }
 
 void handle_collision(PointMass& a, PointMass& b) {
@@ -181,7 +179,7 @@ void handle_collision(PointMass& a, PointMass& b) {
     }
 }
 
-int main() {
+int main() try {
     // Parameters
     Config config = read_config("config.ini");
     double L = config.L;
@@ -189,71 +187,57 @@ int main() {
     double T = config.T;
     double G = config.G;
 
-    int N = (1 << config.n);
-    int steps = static_cast<int>(T/dt);
-
-
-    // Random initialization
-    std::mt19937 gen(42);
-    std::uniform_real_distribution<double> mass_dist(1.0, 2.0);
-    std::uniform_real_distribution<double> pos_dist(-L/2.0, L/2.0);
-    std::uniform_real_distribution<double> vel_dist(-1.0, 1.0);
-    std::uniform_real_distribution<double> rad_dist(0.001, 0.05);
+    if (config.n < 0 || config.n >= std::numeric_limits<int>::digits) {
+        throw std::runtime_error("n is outside the supported range for N = 2^n");
+    }
+    if (!std::isfinite(L) || L <= 0.0 || !std::isfinite(G)) {
+        throw std::runtime_error("L must be positive and G must be finite");
+    }
+    if (!std::isfinite(dt) || dt <= 0.0 || !std::isfinite(T) || T < 0.0 ||
+        T / dt > std::numeric_limits<int>::max()) {
+        throw std::runtime_error("Invalid dt or T, or too many time steps");
+    }
+    const int N = 1 << config.n;
+    const int steps = static_cast<int>(T / dt);
+    const bool use_tree = config.gravity == GravityMethod::barnes_hut;
 
     std::vector<PointMass> particles;
     particles.reserve(N);
-    for (int i=0; i<N; i++){
-        std::array<double,3> pos = {pos_dist(gen), pos_dist(gen), pos_dist(gen)};
-        std::array<double,3> vel = {vel_dist(gen), vel_dist(gen), vel_dist(gen)};
-        double m = mass_dist(gen);
-        double r = rad_dist(gen);
-        particles.emplace_back(m, pos, vel, r);
-    }
+    initialize_particles(particles, N, config);
 
     std::vector<double> total_kinetic_energy(steps,0.0);
     std::vector<double> total_potential_energy(steps,0.0);
     std::vector<double> total_angular_momentum(steps,0.0);
 
-    // Since it may be necessary to analyze the particle position of each time step later, it can be stored as needed.
-    // Formate: [x1, y1, z1, vx1, vy1, vz1, m1, r1, x2, y2, z2, vx2...]
-    std::stringstream pc_filename;
-    pc_filename << "../cc_data/particle_data_N_" << N << ".bin";
-    std::ofstream particle_data(pc_filename.str(), std::ios::binary);
-    // For each particle, 3pos + 3vel + 1mass + 1radius = 8 double per particle
-    // steps * N * 8 * sizeof(double)
+    BarnesHut tree(particles);
+    std::vector<std::size_t> collisions;
+    const auto evaluate_gravity = [&] {
+        if (!use_tree) return direct_gravity(particles, G);
+        tree.rebuild();
+        return tree.gravity(G, config.theta);
+    };
+
+    std::cout << "Gravity: " << (use_tree ? "barnes_hut" : "direct");
+    if (use_tree) std::cout << " (theta=" << config.theta << ')';
+    std::cout << '\n';
+
+    // Accelerations at the initial positions; subsequent evaluations also record energy.
+    if (steps > 0) evaluate_gravity();
 
     for (int step = 0; step < steps; step++) {
         double progress = (double)step / steps * 100;
         std::cout << "Step " << step << "/" << steps << " Progress: " << progress << "\n" ;
 
-        // Calculate Pairwise Gravitational Force
-        std::vector<std::array<double,3>> forces(N, {0.0,0.0,0.0});
-        for (int i=0; i<N; i++) {
-            for (int j=i+1; j<N; j++) {
-                auto r_vec = particles[j].position - particles[i].position;
-                double r = norm(r_vec);
-                if (r==0.0) continue;
-                double F_mag = G * particles[i].mass * particles[j].mass / (r*r);
-                auto r_hat = (1.0/r)*r_vec;
-                auto F_i = F_mag * r_hat;
-                auto F_j = (-1.0)*F_i;
-                for (int k=0; k<3; k++){
-                    forces[i][k] += F_i[k];
-                    forces[j][k] += F_j[k];
-                }
-            }
-        }
-
-        // Apply force
-        for (int i=0; i<N; i++) {
-            particles[i].apply_force(forces[i]);
-        }
-
-        // Check and handle ollision
-        for (int i=0; i<N; i++) {
-            for (int j=i+1; j<N; j++) {
-                if (check_collision(particles[i], particles[j])) {
-                    handle_collision(particles[i], particles[j]);
+        // Resolve contacts at the current positions before updating velocities and positions.
+        for (std::size_t i = 0; i < particles.size(); ++i) {
+            if (use_tree) {
+                tree.collisions_after(i, collisions);
+                for (const auto j : collisions) handle_collision(particles[i], particles[j]);
+            } else {
+                for (std::size_t j = i + 1; j < particles.size(); ++j) {
+                    if (check_collision(particles[i], particles[j])) {
+                        handle_collision(particles[i], particles[j]);
+                    }
                 }
             }
         }
@@ -270,20 +254,11 @@ int main() {
             KE += 0.5 * p.mass * v2;
         }
 
-        // Calculate Potential Energy
-        double PE = 0.0;
-        for (int i=0; i<N; i++) {
-            for (int j=i+1; j<N; j++) {
-                auto r_vec = particles[j].position - particles[i].position;
-                double r = norm(r_vec);
-                if (r != 0.0) {
-                    PE += -G * particles[i].mass * particles[j].mass / r;
-                }
-            }
-        }
+        // At the new positions, compute potential energy and prepare the next step.
+        const double PE = evaluate_gravity();
 
         // Calculate Angular Momentum
-        std::array<double,3> L_total = {0.0,0.0,0.0};
+        Vec3 L_total{};
         for (auto &p : particles) {
             // L = r x (m v)
             auto mv = p.mass * p.velocity;
@@ -296,30 +271,24 @@ int main() {
         total_kinetic_energy[step] = KE;
         total_potential_energy[step] = PE;
         total_angular_momentum[step] = L_mag;
-
-        // Save particle data in every frame
-        // Output: pos(x,y,z), vel(vx,vy,vz), mass, radius
-        for (auto &p : particles) {
-            double buffer[8] = {p.position[0], p.position[1], p.position[2],
-                                p.velocity[0], p.velocity[1], p.velocity[2],
-                                p.mass, p.radius};
-            // particle_data.write(reinterpret_cast<char*>(buffer), sizeof(buffer));
-        }
-
     }
 
-    particle_data.close();
-
-    {   
-        std::stringstream eg_filename;
-        eg_filename << "../data/cc_energy_data_N_" << N << ".bin";
-        std::ofstream energy_data(eg_filename.str(), std::ios::binary);
-        energy_data.write((char*)total_kinetic_energy.data(), steps*sizeof(double));
-        energy_data.write((char*)total_potential_energy.data(), steps*sizeof(double));
-        energy_data.write((char*)total_angular_momentum.data(), steps*sizeof(double));
-        energy_data.close();
+    std::filesystem::create_directories("../data");
+    const auto filename = "../data/cc_energy_data_N_" + std::to_string(N) + ".bin";
+    std::ofstream energy_data(filename, std::ios::binary);
+    if (!energy_data) throw std::runtime_error("Could not open output file: " + filename);
+    const std::streamsize bytes = static_cast<std::streamsize>(steps) * sizeof(double);
+    if (steps > 0) {
+        energy_data.write(reinterpret_cast<const char*>(total_kinetic_energy.data()), bytes);
+        energy_data.write(reinterpret_cast<const char*>(total_potential_energy.data()), bytes);
+        energy_data.write(reinterpret_cast<const char*>(total_angular_momentum.data()), bytes);
     }
+    energy_data.close();
+    if (!energy_data) throw std::runtime_error("Could not write output file: " + filename);
 
     std::cout << "Simulation finished.\n";
     return 0;
+} catch (const std::exception& error) {
+    std::cerr << "Simulation error: " << error.what() << '\n';
+    return 1;
 }
