@@ -122,6 +122,30 @@ The script supplies both programs with the same optional `initial_conditions` fi
 
 On an Apple M2 with 8 GiB of RAM, Clang and GNU Fortran builds at `-O2` both completed a one-step run with 1,048,576 particles (`n = 20`). It took about 42 seconds in C++ and 55 seconds in Fortran. This is the largest case tested. At 16,384 particles over four steps, Barnes–Hut took 0.32 seconds in C++ and 0.52 seconds in Fortran, versus 3.15 and 6.14 seconds with direct gravity. Those four-step timings are medians of three runs.
 
+#### OpenMP in C++
+
+On macOS with Apple Clang, install Homebrew's `libomp` and build the OpenMP executable from the repository root.
+
+```sh
+brew install libomp
+omp_prefix="$(brew --prefix libomp)"
+clang++ -std=c++17 -O2 -Xpreprocessor -fopenmp -I"$omp_prefix/include" \
+  code/Simulation.cc code/random_mt.cc -L"$omp_prefix/lib" -Wl,-rpath,"$omp_prefix/lib" \
+  -lomp -o /tmp/cpg-nbody-openmp
+(cd code && OMP_NUM_THREADS=4 /tmp/cpg-nbody-openmp)
+```
+
+The OpenMP build distributes the Barnes–Hut gravity and potential calculations across threads for $N \ge 1024$. The tree build, collisions, and time integration run serially. Use `gravity = barnes_hut` in `config.ini` and set `OMP_NUM_THREADS` to choose the team size.
+
+The benchmark compares direct pairwise, serial Barnes–Hut, and Barnes–Hut with 1, 2, 4, and 8 OpenMP threads on the same initial conditions. Run it with the serial executable built above. Figure generation uses Matplotlib and writes vector PDFs.
+
+```sh
+python3 code/benchmark_openmp.py --binaries /tmp/cpg-nbody-cpp /tmp/cpg-nbody-openmp \
+  --csv /tmp/nbody_openmp_benchmark.csv --plot-dir /tmp/nbody-plots
+```
+
+The measurements used in the report are in `plot/nbody_openmp_benchmark.csv`. See `Tex/main.pdf` for the runtime and thread scaling figures.
+
 ### Continuous Integration and Release
 
 GitHub Actions builds both native backends on a macOS runner: the C++ backend with Clang and the Fortran backend with Flang. The workflow runs for pull requests targeting `main` and pushes to `main`. After the first successful build on `main`, it creates the `v1.0.0` GitHub Release; subsequent builds leave that release unchanged.

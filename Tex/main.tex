@@ -6,7 +6,6 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{systeme}
 \usepackage{enumitem}
 \usepackage{booktabs}
 \usepackage{gensymb}
@@ -60,9 +59,7 @@
 \maketitle
 
 \begin{abstract}
-	The N-body problem lies at the heart of understanding complex gravitational interactions, from planetary systems to galactic dynamics. This article explores the computational approach to solving the N-body problem, leveraging the power of Fortran for efficient simulation. I analyze the evolution of the system's energy and angular momentum to ensure conservation laws are upheld, a crucial benchmark for the accuracy of numerical methods. Additionally, statistical analyses provide insights into the emergent behaviors and stability of the system, further illustrating the robustness of the simulation.
-
-	This work sheds light on how N-body simulations continue to transform our understanding of the cosmos, offering a gateway to unraveling the mysteries of celestial mechanics.
+We simulate gravitational $N$-body systems with elastic collisions in C++ and Fortran. We compare direct pairwise gravity with the Barnes--Hut approximation and measure the effect of OpenMP on the C++ tree traversal. Kinetic energy, potential energy, and angular momentum provide numerical checks across the solvers. The timing experiments use identical initial conditions and separate the speedup from the octree algorithm from the additional speedup from threading.
 \end{abstract}
 \begin{multicols}{2}
 
@@ -104,32 +101,18 @@ By carefully tuning parameters such as the opening angle $\theta$, one can achie
 
 
 
+\subsection{OpenMP Tree Traversal}
+
+Once the tree is built, the gravitational acceleration of each target particle can be evaluated independently. In C++, an OpenMP worksharing loop assigns target particles to threads using a static schedule. Each iteration reads the same tree, writes only the target's acceleration, and contributes to a reduction of the gravitational potential energy~\cite{openmp_api_52}. The tree build, collision handling, and time integration execute serially. Collision impulses retain their pair order because two contacts can share a particle.
+
 \subsection{Time Integration}
 
-In this work, we start with a simple Euler method for time integration. For each particle, given a timestep $\Delta t$:
-
+The simulation uses semi-implicit Euler integration. For a time step $\Delta t$, the code first updates the velocity using the current acceleration, then advances the position with that updated velocity:
 \begin{align}
-	\mathbf{x}(t + \Delta t)
-	&= \mathbf{x}(t) + \mathbf{\dot{x}}(t) \cdot \Delta t \\
-	\mathbf{\dot{x}}(t + \Delta t)
-	&= \mathbf{\dot{x}}(t) + \mathbf{\ddot{x}}(t) \cdot \Delta t
+\mathbf{v}(t+\Delta t) &= \mathbf{v}(t) + \mathbf{a}(t)\,\Delta t, \\
+\mathbf{x}(t+\Delta t) &= \mathbf{x}(t) + \mathbf{v}(t+\Delta t)\,\Delta t.
 \end{align}
-
-However, the Euler method, while straightforward, is only first-order accurate in $\Delta t$ and can lead to significant energy drift over long timescales. To improve accuracy and better conserve physical invariants such as total energy and angular momentum, we incorporate higher-order integration schemes derived from the Taylor expansion of position and velocity at $t + \Delta t$:
-
-\begin{align}
-	\mathbf{x_1} \nonumber
-	&= \mathbf{x_0} + \frac{1}{2}\left(\mathbf{\dot{x}_0} + \mathbf{\dot{x}_1}\right)\Delta t \\
-	&+ \frac{1}{12}\left(\mathbf{a_0} - \mathbf{a_1}\right)\Delta t^2+ O\left(\Delta t^5\right) \\
-	\mathbf{\dot{x}_1} \nonumber
-	&= \mathbf{\dot{x}_0} + \frac{1}{2}\left(\mathbf{a_0} + \mathbf{a_1}\right)\Delta t \\
-	&+ \frac{1}{12}\left(\mathbf{\dot{a}_0} - \mathbf{\dot{a}_1}\right)\Delta t^2 + O\left(\Delta t^5\right)
-\end{align}
-
-Such higher-order and symplectic integrators (e.g., velocity Verlet) provide better long-term stability and minimize numerical artifacts that arise from approximation errors. In future enhancements, we may employ adaptive timestepping or even more sophisticated integrators to robustly handle close encounters, large $N$ systems, and complex dynamical scenarios.
-
-
-
+Here $\mathbf{v}(t)$ includes any collision impulse applied before the step. The method is first-order accurate in $\Delta t$. Higher-order methods, such as velocity Verlet, are a possible extension for studying energy behavior over longer intervals.
 
 \subsection{Elastic Collision}
 
@@ -147,11 +130,11 @@ Once a collision is detected, we resolve it by treating the encounter as a one-d
 
 The relative velocity of the particles along this normal direction is: \begin{equation} v_{\text{rel}, n} = \left(\mathbf{v}_a - \mathbf{v}_b\right) \cdot \mathbf{n}. \end{equation}
 
-If $v_{\text{rel}, n}$ is positive, the particles are already moving apart, and no collision response is needed. Otherwise, we compute an impulse $J$ that, when applied equally and oppositely to the two particles, conserves both momentum and kinetic energy. For masses $m_a$ and $m_b$, the magnitude of the impulse is: \begin{equation} J = \frac{2,v_{\text{rel}, n}}{\frac{1}{m_a} + \frac{1}{m_b}}. \end{equation}
+If $v_{\text{rel}, n}$ is positive, the particles are already moving apart, and no collision response is needed. Otherwise, we compute an impulse $J$ that, when applied equally and oppositely to the two particles, conserves both momentum and kinetic energy. For masses $m_a$ and $m_b$, the magnitude of the impulse is: \begin{equation} J = \frac{2\,v_{\text{rel}, n}}{\frac{1}{m_a} + \frac{1}{m_b}}. \end{equation}
 
 The post-collision velocities are then updated as follows: \begin{align} \mathbf{v}_a' &= \mathbf{v}_a - \frac{J}{m_a}\mathbf{n}, \ \mathbf{v}_b' &= \mathbf{v}_b + \frac{J}{m_b}\mathbf{n}. \end{align}
 
-This formulation ensures that the collision is perfectly elastic. Kinetic energy and linear momentum along the collision line are conserved, and the particles no longer overlap following the collision response. Such a treatment, while idealized, is sufficient for maintaining physically consistent behavior in the simulated system and preventing unrealistic particle interpenetrations.
+This formulation ensures that the collision is perfectly elastic. The impulse conserves kinetic energy and linear momentum. The position update then carries the bodies apart according to their post-collision velocities.
 
 
 \section{Simulation Setup}\label{sec:Simulation-Setup}
@@ -231,11 +214,55 @@ At $N = 256$, however, energy conservation begins to break down more noticeably.
 
 In summary, while total energy is reasonably well conserved for smaller systems, higher particle numbers lead to more substantial energy drift. Future improvements, such as adaptive timestep selection or higher-order symplectic integrators, may be necessary to maintain better energy conservation in large-scale $N$-body simulations.
 
+\end{multicols}
 
+\subsection{Solver Runtime and OpenMP Scaling}
+\label{sec:performance}
 
+We timed the C++ solvers on an Apple M2 with four performance cores, four efficiency cores, and 8 GiB of RAM. Both executables used Apple Clang 17 with \texttt{-O2}. The parallel build linked against LLVM's \texttt{libomp}. All solvers used the same seeded initial particles at a given $N$, with $L=10$, $G=1$, $\Delta t=2^{-17}$, and $\theta=0.5$ for Barnes--Hut. The benchmark ran four steps and reports the median of three wall times, including initialization and file I/O. Table~\ref{tab:solver-runtime} and Fig.~\ref{fig:solver-runtime} compare solvers. We timed the direct solver through $N=16{,}384$ and Barnes--Hut through $N=131{,}072$ with 1, 2, 4, and 8 OpenMP threads.
 
+\begin{table}[!htbp]
+\centering
+\caption{Median wall time in seconds for four C++ simulation steps. A dash denotes a case outside the direct benchmark.}
+\label{tab:solver-runtime}
+\begin{tabular}{@{}r r r r r@{}}
+\toprule
+Particles & Direct & Serial Barnes--Hut & OpenMP (4) & OpenMP (8) \\
+\midrule
+$1{,}024$   & 0.0175 & 0.0136 & 0.0109 & 0.0111 \\
+$4{,}096$   & 0.2134 & 0.0518 & 0.0224 & 0.0256 \\
+$16{,}384$  & 3.1598 & 0.3313 & 0.1127 & 0.0948 \\
+$65{,}536$  & ---    & 1.6341 & 0.5364 & 0.4744 \\
+$131{,}072$ & ---    & 5.1946 & 1.5983 & 1.6082 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-%\section{Discussion}
+At $N=16{,}384$, serial Barnes--Hut was $9.54\times$ faster than direct summation. Four OpenMP threads gave a further $2.94\times$ speedup, for a combined $28.0\times$ speedup over direct summation. Eight threads reduced the wall time to $0.0948\,\mathrm{s}$.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.82\textwidth]{../plot/nbody_solver_runtime.pdf}
+\caption{Wall time versus particle count for direct summation, serial Barnes--Hut, and Barnes--Hut with four OpenMP threads. Both axes use a logarithmic scale.}
+\label{fig:solver-runtime}
+\end{figure}
+
+At $N=131{,}072$, four threads delivered a $3.25\times$ speedup over serial Barnes--Hut and eight threads gave nearly the same wall time (Fig.~\ref{fig:openmp-scaling}). The remaining serial work and thread overhead limit the speedup of the full simulation.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.82\textwidth]{../plot/nbody_openmp_speedup.pdf}
+\caption{OpenMP speedup for the three largest cases, measured as serial Barnes--Hut wall time divided by threaded wall time. The dashed line marks equal wall time.}
+\label{fig:openmp-scaling}
+\end{figure}
+
+Across the four-step comparisons, the largest relative differences between direct and serial Barnes--Hut were $3.73\times10^{-7}$ for kinetic energy, $2.62\times10^{-5}$ for potential energy, and $6.11\times10^{-5}$ for angular momentum magnitude, each measured relative to the serial Barnes--Hut value. OpenMP and serial Barnes--Hut agreed to within $1.34\times10^{-14}$ in potential energy. Their kinetic energy and angular momentum diagnostics matched in these runs. The parallel reduction changes the summation order, which accounts for the potential energy roundoff. These comparisons cover short runs with the stated initial conditions.
+
+\paragraph{Fortran comparison.}
+In a separate shared-input comparison at $N=16{,}384$, the four-step Fortran run took $6.14\,\mathrm{s}$ with direct summation and $0.52\,\mathrm{s}$ with Barnes--Hut. The corresponding C++ times were $3.15\,\mathrm{s}$ and $0.32\,\mathrm{s}$. Both serial Barnes--Hut backends completed a one-step run at $N=1{,}048{,}576$, in about 42 seconds for C++ and 55 seconds for Fortran. The one-step diagnostics agreed within a relative difference of $1.86\times10^{-16}$. The repository includes the benchmark scripts and the OpenMP timing data.
+
+\begin{multicols}{2}
+
 \section{Discussion}
 
 The results presented in this work highlight both the capabilities and the limitations of our current $N$-body simulation approach. By examining key physical invariants—particularly total angular momentum and total energy—we gain insights into the accuracy and stability of our chosen numerical methods.
@@ -251,7 +278,7 @@ In contrast, energy conservation proves more challenging as $N$ grows. For small
 However, by $N = 256$, the simulation struggles to maintain energy conservation. The significant drift observed in total energy suggests that numerical errors accumulate more rapidly in dense and dynamically active environments. Factors contributing to this drift include:
 
 \begin{itemize}
-    \item \textbf{Integration Method Limitations:} While straightforward integrators like the Euler or low-order schemes are easy to implement, they do not guarantee long-term conservation of energy. The cumulative effect of truncation errors becomes substantial as $N$ increases.
+    \item \textbf{Time integration.} While straightforward integrators like the Euler or low-order schemes are easy to implement, they do not guarantee long-term conservation of energy. The cumulative effect of truncation errors becomes substantial as $N$ increases.
     \item \textbf{Collision Handling:} Although our elastic collision model conserves momentum and kinetic energy in the instantaneous interaction, multiple collisions and close encounters introduce subtle numerical artifacts. Over many timesteps, small inaccuracies can accumulate, contributing to observable energy drift.
     \item \textbf{Parameter Choices:} A fixed timestep $\Delta t$ may be appropriate for small $N$ but becomes less optimal for larger systems that contain regions of high density and rapidly changing gravitational potentials. Without adaptive refinement, large systems can rapidly develop unstable numerical behaviors.
 \end{itemize}
@@ -262,7 +289,7 @@ The observed energy drift at higher $N$ highlights the need for more sophisticat
 
 Beyond integration methods, data structures like the Barnes–Hut tree, which have already proven effective in reducing computational complexity, can be further optimized. More accurate cell-opening criteria or hybrid approaches that combine direct summation for near-neighbors with Barnes–Hut approximations for distant particles might yield improved stability.
 
-Finally, considering that this study utilized relatively small particle numbers compared to state-of-the-art astrophysical simulations, these findings underscore the importance of careful algorithmic choices as I approach massively parallel, million- or billion-particle simulations. The lessons learned here—balancing accuracy, efficiency, and stability—are directly relevant to advancing the field of computational astrophysics, where precise $N$-body solvers underpin our understanding of gravitational clustering, galaxy formation, and large-scale cosmological structures.
+The longer conservation runs used up to 256 particles, while the performance tests reached over one million particles for a single step. Measuring long-term energy behavior at the larger sizes will require longer runs and a separate time-step study.
 
 \subsection*{Future Directions}
 
@@ -272,7 +299,7 @@ Moving forward, several improvements are possible:
     \item \textbf{Higher-Order and Symplectic Integrators:} Implementing integrators designed to conserve phase-space volume and energy more rigorously over long timescales could yield more stable results, especially for large $N$.
     \item \textbf{Adaptive Timestepping:} Dynamically adjusting the timestep in response to the system’s local conditions would help resolve close encounters more accurately, reducing the accumulation of numerical errors.
     \item \textbf{Refined Collision Models:} Incorporating more physically realistic collision treatments or implementing methods that minimize unphysical overlapping states could improve overall energy stability.
-    \item \textbf{Scaling Tests:} Testing larger $N$ systems, perhaps combined with GPU acceleration or parallel computing strategies, would provide valuable insight into how well these solutions scale and where bottlenecks occur.
+    \item \textbf{Scaling Tests:} Profiling the serial tree build and collision handling would show which stages to parallelize next. A separate GPU benchmark could measure how the solver scales on a different architecture.
 \end{itemize}
 
 In conclusion, while our simulations demonstrate stable angular momentum conservation and reliable energy behavior for smaller $N$, the results at higher $N$ emphasize the need for more advanced numerical techniques. By refining our integration schemes, timestepping strategies, and collision handling, I can push toward more accurate, stable, and scalable $N$-body simulations, ultimately gaining a deeper understanding of gravitational interactions in complex astrophysical environments.

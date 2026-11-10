@@ -29,14 +29,14 @@ def write_particles(path, particles):
             output.write(PARTICLE.pack(*particle))
 
 
-def run(backend, work, n, steps, method, theta=0.5, dt=DT):
+def run(backend, work, n, steps, method, theta=0.5, dt=DT, env=None):
     binary, prefix = backend
     (work / "config.ini").write_text(
         f"[Simulation]\nn = {n}\nL = 10\ndt = {dt}\nT = {dt * steps}\nG = 1\n"
         f"gravity = {method}\ntheta = {theta}\ninitial_conditions = particles.bin\n"
     )
     start = time.perf_counter()
-    subprocess.run([binary], cwd=work, stdout=subprocess.DEVNULL, check=True)
+    subprocess.run([binary], cwd=work, env=env, stdout=subprocess.DEVNULL, check=True)
     seconds = time.perf_counter() - start
     output = work.parent / "data" / f"{prefix}_energy_data_N_{1 << n}.bin"
     values = struct.unpack(f"={3 * steps}d", output.read_bytes())

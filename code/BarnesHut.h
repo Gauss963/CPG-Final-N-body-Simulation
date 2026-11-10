@@ -92,7 +92,13 @@ public:
     double gravity(double G, double theta) {
         double potential = 0.0;
         const double theta_squared = theta * theta;
-        for (std::size_t i = 0; i < particles_.size(); ++i) {
+        const std::size_t count = particles_.size();
+        // The tree and particle positions are read-only during this traversal.
+        // Each iteration writes its own acceleration and contributes to the energy reduction.
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(static) reduction(+:potential) if(count >= 1024)
+#endif
+        for (std::size_t i = 0; i < count; ++i) {
             Gravity result;
             accumulate_gravity(nodes_.front(), rank_[i], particles_[i].position,
                                G, theta_squared, result);

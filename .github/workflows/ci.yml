@@ -18,8 +18,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Flang
-        run: brew install flang
+      - name: Install Flang and OpenMP runtime
+        run: brew install flang libomp
 
       - name: Build C++ backend with Clang
         run: clang++ -std=c++17 -O2 code/Simulation.cc code/random_mt.cc -o "$RUNNER_TEMP/Simulation_cc"
@@ -35,6 +35,14 @@ jobs:
 
       - name: Compare C++ and Fortran diagnostics
         run: python3 code/compare_backends.py "$RUNNER_TEMP/Simulation_cc" "$RUNNER_TEMP/Simulation_FF" --check
+
+      - name: Check C++ OpenMP diagnostics
+        run: |
+          omp_prefix="$(brew --prefix libomp)"
+          clang++ -std=c++17 -O2 -Xpreprocessor -fopenmp -I"$omp_prefix/include" \
+            code/Simulation.cc code/random_mt.cc -L"$omp_prefix/lib" -Wl,-rpath,"$omp_prefix/lib" \
+            -lomp -o "$RUNNER_TEMP/Simulation_cc_omp"
+          python3 code/benchmark_openmp.py --check --binaries "$RUNNER_TEMP/Simulation_cc" "$RUNNER_TEMP/Simulation_cc_omp"
 
       - name: Stage macOS executables
         run: |
